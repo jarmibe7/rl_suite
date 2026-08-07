@@ -26,6 +26,8 @@ class Gridworld(gym.Env):
         goal_pos: tuple = None,
         start_pos: tuple = None,
         size_obs: bool = False,
+        random_start: bool = False,
+        random_goal: bool = False,
     ):
         """Initialize Gridworld.
         
@@ -40,10 +42,14 @@ class Gridworld(gym.Env):
         self.grid_size = grid_size
         self.max_steps = max_steps
         self.size_obs = size_obs
+        self.random_start = random_start
+        self.random_goal = random_goal
         
-        # Set positions
-        self.goal_pos = goal_pos if goal_pos is not None else (grid_size - 1, grid_size - 1)
-        self.start_pos = start_pos if start_pos is not None else (0, 0)
+        # Store the configured positions as the deterministic defaults
+        self._default_goal_pos = goal_pos if goal_pos is not None else (grid_size - 1, grid_size - 1)
+        self._default_start_pos = start_pos if start_pos is not None else (0, 0)
+        self.goal_pos = self._default_goal_pos
+        self.start_pos = self._default_start_pos
         
         # Agent position
         self.agent_pos = None
@@ -83,6 +89,14 @@ class Gridworld(gym.Env):
             Observation and info dict
         """
         super().reset(seed=seed)
+
+        if self.random_start or self.random_goal:
+            start_pos, goal_pos = self._sample_positions()
+            self.start_pos = start_pos
+            self.goal_pos = goal_pos
+        else:
+            self.start_pos = self._default_start_pos
+            self.goal_pos = self._default_goal_pos
         
         self.agent_pos = np.array(self.start_pos, dtype=np.float32)
         self.step_count = 0
@@ -165,6 +179,25 @@ class Gridworld(gym.Env):
                 np.array(self.goal_pos, dtype=np.float32)
             ])
     
+    def _sample_positions(self) -> tuple:
+        """Sample a new start/goal pair, ensuring they are distinct when both are random."""
+        if self.random_start and self.random_goal:
+            while True:
+                start = tuple(self._np_random.integers(0, self.grid_size, size=2))
+                goal = tuple(self._np_random.integers(0, self.grid_size, size=2))
+                if start != goal:
+                    return start, goal
+
+        if self.random_start:
+            start = tuple(self._np_random.integers(0, self.grid_size, size=2))
+            return start, self._default_goal_pos
+
+        if self.random_goal:
+            goal = tuple(self._np_random.integers(0, self.grid_size, size=2))
+            return self._default_start_pos, goal
+
+        return self._default_start_pos, self._default_goal_pos
+
     def _manhattan_distance(self, pos1: np.ndarray, pos2: np.ndarray) -> float:
         """Compute manhattan distance between two positions."""
         return float(np.abs(pos1[0] - pos2[0]) + np.abs(pos1[1] - pos2[1]))
@@ -172,11 +205,10 @@ class Gridworld(gym.Env):
     def optimal_return(self) -> float:
         """Compute optimal return for this episode setup.
         
-        Assuming dense reward of -manhattan_distance_to_goal at each step,
-        the optimal policy moves directly toward the goal and achieves:
-        sum of -distance_at_each_step.
-        
-        Starting at start_pos, moving optimally to goal_pos, then staying at goal.
+        Rewards are emitted after a move based on the new distance to the goal.
+        For an optimal path, the rewards are:
+        -(d-1), -(d-2), ..., -1, 0
+        where d is the initial Manhattan distance to the goal.
         
         Returns:
             Best possible cumulative reward
@@ -185,14 +217,12 @@ class Gridworld(gym.Env):
             np.array(self.start_pos, dtype=np.float32),
             np.array(self.goal_pos, dtype=np.float32)
         )
-        
-        # Optimal path takes exactly dist_to_goal steps to reach goal
-        # After reaching goal, algorithm is done (no further steps)
+
+        if dist_to_goal <= 0:
+            return 0.0
+
         optimal_return = 0.0
-        
-        # At each step moving toward goal, distance decreases by 1
-        for step in range(int(dist_to_goal)):
-            remaining_dist = dist_to_goal - step
-            optimal_return -= remaining_dist
-        
+        for step in range(int(dist_to_goal) - 1, -1, -1):
+            optimal_return -= step
+
         return optimal_return

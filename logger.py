@@ -30,6 +30,10 @@ class Logger:
         self.run_name = run_name
         self.config = config or {}
         self.run_dir = run_dir
+
+        init_mode = os.environ.get("WANDB_MODE")
+        if init_mode is None and not os.environ.get("WANDB_API_KEY"):
+            init_mode = "offline"
         
         # Initialize wandb
         self.run = wandb.init(
@@ -38,6 +42,7 @@ class Logger:
             name=run_name,
             config=self.config,
             dir=run_dir,
+            mode=init_mode,
         )
     
     def log(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:

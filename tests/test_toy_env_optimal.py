@@ -15,7 +15,7 @@ class TestGridworldEnvironment:
     
     def test_gridworld_reset(self):
         """Test that reset works correctly."""
-        env = Gridworld(grid_size=5, max_steps=10, seed=0)
+        env = Gridworld(grid_size=5, max_steps=10)
         obs, info = env.reset(seed=0)
         
         # Check observation shape
@@ -29,7 +29,7 @@ class TestGridworldEnvironment:
     
     def test_gridworld_step(self):
         """Test that step works correctly."""
-        env = Gridworld(grid_size=5, max_steps=10, seed=0)
+        env = Gridworld(grid_size=5, max_steps=10)
         obs, _ = env.reset(seed=0)
         
         # Move right
@@ -47,7 +47,7 @@ class TestGridworldEnvironment:
     def test_gridworld_episode_termination(self):
         """Test that episode terminates when goal is reached."""
         # Create small gridworld where goal is close
-        env = Gridworld(grid_size=3, max_steps=10, goal_pos=(1, 0), start_pos=(0, 0), seed=0)
+        env = Gridworld(grid_size=3, max_steps=10, goal_pos=(1, 0), start_pos=(0, 0))
         obs, _ = env.reset(seed=0)
         
         # Move right (should reach goal)
@@ -58,7 +58,7 @@ class TestGridworldEnvironment:
     
     def test_gridworld_max_steps_truncation(self):
         """Test that episode truncates after max steps."""
-        env = Gridworld(grid_size=5, max_steps=2, seed=0)
+        env = Gridworld(grid_size=5, max_steps=2)
         obs, _ = env.reset(seed=0)
         
         # Take max_steps steps
@@ -70,16 +70,16 @@ class TestGridworldEnvironment:
     
     def test_gridworld_boundary_conditions(self):
         """Test that agent doesn't move outside grid."""
-        env = Gridworld(grid_size=5, max_steps=10, start_pos=(0, 0), seed=0)
+        env = Gridworld(grid_size=5, max_steps=10, start_pos=(0, 0))
         obs, _ = env.reset(seed=0)
         
         # Try to move left (should be clamped)
         obs, _, _, _, _ = env.step(2)  # 2 = left
         assert obs[0] == 0, "Agent x should be clamped at 0"
         
-        # Try to move up (should be clamped)
-        obs, _, _, _, _ = env.step(1)  # 1 = up
-        assert obs[1] == 0, "Agent y should be clamped at 0"
+        # Try to move down from the bottom edge (should be clamped)
+        obs, _, _, _, _ = env.step(3)  # 3 = down
+        assert obs[1] == 0, f"Agent y should be clamped at 0, got {obs[1]}"
     
     def test_gridworld_optimal_return(self):
         """Test optimal_return calculation."""
@@ -88,10 +88,10 @@ class TestGridworldEnvironment:
         optimal = env.optimal_return()
         
         # Optimal path: move right 3 times
-        # Distances: 3, 2, 1 (then done when reaching 0)
-        # Rewards: -3, -2, -1
-        # Total: -6
-        expected = -(3 + 2 + 1)
+        # The environment rewards after each move using the new distance:
+        # rewards: -2, -1, 0
+        # Total: -3
+        expected = -(2 + 1 + 0)
         
         assert optimal == expected, f"Expected optimal return {expected}, got {optimal}"
 
@@ -117,9 +117,9 @@ class OptimalGridworldPolicy:
         elif agent_x > goal_x:
             return 2  # Move left
         elif agent_y < goal_y:
-            return 3  # Move down
-        elif agent_y > goal_y:
             return 1  # Move up
+        elif agent_y > goal_y:
+            return 3  # Move down
         else:
             # Already at goal, can take any action
             return 0
@@ -130,10 +130,10 @@ def test_optimal_policy_achieves_optimal_return():
     seeds = [0, 1, 2]
     
     for seed in seeds:
-        env = Gridworld(grid_size=7, max_steps=20, seed=seed)
+        env = Gridworld(grid_size=7, max_steps=20)
         env.reset(seed=seed)
         
-        # Compute expected optimal return
+        # Compute expected optimal return from the environment's reward convention
         optimal_return = env.optimal_return()
         
         # Run policy
@@ -151,8 +151,7 @@ def test_optimal_policy_achieves_optimal_return():
             episode_return += float(reward)
             step_count += 1
         
-        # Check that policy achieves optimal return
-        # May not be exactly equal due to floating point, so use tolerance
+        # Check that policy achieves near optimal return
         assert abs(episode_return - optimal_return) < 1e-5, (
             f"Policy return {episode_return} does not match "
             f"optimal return {optimal_return} (seed {seed})"

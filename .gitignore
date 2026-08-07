@@ -2,3 +2,6 @@
 runs/
 Instructions.md
 Changes.md
+Fixes.md
+__pycache__/
+.vscode/

@@ -2,12 +2,13 @@
 env:
   name: Gridworld
   params:
-    grid_size: 5
-    max_steps: 10
+    grid_size: 25
+    max_steps: 50
     goal_pos: null  # Default: (grid_size-1, grid_size-1)
     start_pos: null  # Default: (0, 0)
-    size_obs: false
-
+    size_obs: false    
+    random_start: true
+    random_goal: true
 # Algorithm configuration
 algo:
   name: random
@@ -26,8 +27,8 @@ training:
 # Evaluation configuration
 evaluation:
   eval_every_steps: 1000
-  num_episodes: 5
-  record_video: false
+  num_episodes: 1
+  record_video: true
   video_every_calls: 1
 
 # Checkpointing configuration

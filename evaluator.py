@@ -1,10 +1,10 @@
 """Algorithm-agnostic evaluation utilities."""
 
 import numpy as np
-import torch
 import os
+import subprocess
+import shutil
 from typing import Dict, Optional
-from pathlib import Path
 
 
 class Evaluator:
@@ -63,7 +63,7 @@ class Evaluator:
             # Decide whether to record this episode
             record_this = (
                 self.record_video 
-                and (self._eval_call_count % self.video_every_calls == 1)
+                and ((self._eval_call_count - 1) % self.video_every_calls == 0)
                 and hasattr(self.env, 'render_mode')  # Only if env supports rendering
             )
             
@@ -134,33 +134,53 @@ class Evaluator:
             path: Path to save video to
             fps: Frames per second
         """
-        try:
-            import cv2
-        except ImportError:
-            print("opencv-python not available; skipping video save")
-            return
-        
         if len(frames) == 0:
             return
         
-        # Get frame dimensions from first frame
-        frame = frames[0]
+        frame = np.asarray(frames[0])
         height, width = frame.shape[:2]
-        
-        # Initialize video writer
+
+        ffmpeg = shutil.which('ffmpeg')
+        if ffmpeg is not None:
+            input_frames = [self._frame_to_rgb_uint8(frame) for frame in frames]
+            raw_video = b''.join(frame.tobytes() for frame in input_frames)
+            command = [
+                ffmpeg,
+                '-y',
+                '-loglevel', 'error',
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-pix_fmt', 'rgb24',
+                '-s', f'{width}x{height}',
+                '-r', str(fps),
+                '-i', 'pipe:0',
+                '-an',
+                '-vcodec', 'libx264',
+                '-pix_fmt', 'yuv420p',
+                '-movflags', '+faststart',
+                path,
+            ]
+            subprocess.run(command, input=raw_video, check=True)
+            return
+
+        try:
+            import cv2
+        except ImportError:
+            raise RuntimeError('Neither ffmpeg nor opencv-python is available for video saving')
+
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         writer = cv2.VideoWriter(path, fourcc, fps, (width, height))
-        
-        # Write frames
-        for frame in frames:
-            # Convert RGB to BGR for OpenCV
-            if frame.dtype == np.uint8:
-                bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            else:
-                # If float, convert to uint8
-                frame_uint8 = (frame * 255).astype(np.uint8)
-                bgr_frame = cv2.cvtColor(frame_uint8, cv2.COLOR_RGB2BGR)
-            
-            writer.write(bgr_frame)
-        
-        writer.release()
+        try:
+            for frame in frames:
+                writer.write(cv2.cvtColor(self._frame_to_rgb_uint8(frame), cv2.COLOR_RGB2BGR))
+        finally:
+            writer.release()
+
+    def _frame_to_rgb_uint8(self, frame: np.ndarray) -> np.ndarray:
+        """Convert a frame to uint8 RGB for encoding."""
+        array = np.asarray(frame)
+        if array.dtype != np.uint8:
+            if array.max() <= 1.0:
+                array = (array * 255.0).round()
+            array = np.clip(array, 0, 255).astype(np.uint8)
+        return array
