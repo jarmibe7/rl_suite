@@ -1,0 +1,40 @@
+# Environment configuration
+env:
+  name: Gridworld
+  params:
+    grid_size: 5
+    max_steps: 10
+    goal_pos: null  # Default: (grid_size-1, grid_size-1)
+    start_pos: null  # Default: (0, 0)
+    size_obs: false
+
+# Algorithm configuration
+algo:
+  name: random
+  params: {}
+
+# Training configuration
+training:
+  total_steps: 10000
+  batch_size: 32
+  buffer_capacity: 50000
+  buffer_sequence_length: null  # Transition mode
+  start_training_after: 1000
+  updates_per_step: 1
+  seed: 0
+
+# Evaluation configuration
+evaluation:
+  eval_every_steps: 1000
+  num_episodes: 5
+  record_video: false
+  video_every_calls: 1
+
+# Checkpointing configuration
+checkpoint:
+  checkpoint_every_steps: 5000
+
+# Logging configuration
+logging:
+  wandb_project: rl-suite
+  wandb_entity: null
