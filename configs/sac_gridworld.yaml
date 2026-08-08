@@ -1,0 +1,43 @@
+env:
+  name: Gridworld
+  params:
+    grid_size: 5
+    max_steps: 10
+    goal_pos: null
+    start_pos: null
+    size_obs: false
+    random_start: false
+    random_goal: false
+
+algo:
+  name: sac
+  params:
+    hidden_dim: 64
+    hidden_layers: 2
+    learning_rate: 0.0003
+    gamma: 0.99
+    tau: 0.005
+    alpha: 0.2
+    automatic_entropy_tuning: false
+
+training:
+  total_steps: 2000
+  batch_size: 32
+  buffer_capacity: 50000
+  buffer_sequence_length: null
+  start_training_after: 1000
+  updates_per_step: 1
+  seed: 0
+
+evaluation:
+  eval_every_steps: 250
+  num_episodes: 3
+  record_video: false
+  video_every_calls: 1
+
+checkpoint:
+  checkpoint_every_steps: 1000
+
+logging:
+  wandb_project: rl-suite
+  wandb_entity: null

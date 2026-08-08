@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from envs.wrappers import make_env
 from algos.random_actor import RandomActor
+from algos.sac import SAC
 from buffer import ReplayBuffer
 from evaluator import Evaluator
 from logger import Logger
@@ -58,6 +59,7 @@ class TrainingConfig:
 # Algorithm registry
 ALGO_REGISTRY = {
     'random': RandomActor,
+    'sac': SAC,
 }
 
 
@@ -239,7 +241,7 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
     # Build algorithm
     print("\nBuilding algorithm...")
     algo_class = ALGO_REGISTRY[config.algo_name]
-    algo = algo_class(env.action_space, **config.algo_params)
+    algo = algo_class(env.action_space, env.observation_space, **config.algo_params)
     print(f"Algorithm created: {config.algo_name}")
     
     # Build buffer
