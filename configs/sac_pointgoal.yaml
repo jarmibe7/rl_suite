@@ -3,12 +3,12 @@ env:
   params:
     plane_size: 10
     max_steps: 100
-    max_speed: 1.0
-    goal_threshold: 0.1
+    max_speed: 0.2
+    goal_threshold: 0.2
     goal_pos: null
     start_pos: null
-    random_start: false
-    random_goal: false
+    random_start: true
+    random_goal: true
 
 algo:
   name: sac
@@ -18,7 +18,7 @@ algo:
     learning_rate: 0.00003
     gamma: 0.99                        # Discount factor
     tau: 0.005                         # How much to update the target networks at each update
-    alpha: 0.2                        # Entropy reg coef
+    alpha: 0.2                         # Entropy reg coef
     automatic_entropy_tuning: false
 
 training:

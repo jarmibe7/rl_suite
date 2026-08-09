@@ -231,15 +231,14 @@ class Gridworld(gym.Env):
 class PointGoal(gym.Env):
     """Continuous point navigation environment.
     
-    An agent controls the velocity of a point on a 2D plane to reach a goal.
+    An agent controls the acceleration of a point on a 2D plane to reach a goal.
     
-    State: 2D position (x, y)
-    Actions: 2D velocity (vx, vy)
+    State: 2D position (x, y) and velocity (vx, vy)
+    Actions: 2D acceleration (ax, ay)
     Reward: -euclidean_distance_to_goal (dense reward)
     Episode ends when agent reaches goal or max_steps exceeded.
     
-    Purpose: Continuous-control version of Gridworld for testing continuous
-    RL algorithms like SAC.
+    Purpose: Continuous-control version of Gridworld for testing continuous RL algs
     """
     
     metadata = {'render_modes': ['rgb_array'], 'render_fps': 4}
@@ -260,7 +259,7 @@ class PointGoal(gym.Env):
         Args:
             plane_size: Size of square plane (plane spans [-plane_size/2, plane_size/2])
             max_steps: Maximum steps per episode
-            max_speed: Maximum velocity per dimension (actions clipped to [-max_speed, max_speed])
+            max_speed: Maximum velocity magnitude per dimension
             goal_threshold: Distance threshold to consider goal reached
             goal_pos: (x, y) goal position. If None, placed at (plane_size/2 - 1, plane_size/2 - 1)
             start_pos: (x, y) start position. If None, placed at (-plane_size/2 + 1, -plane_size/2 + 1)
@@ -289,9 +288,10 @@ class PointGoal(gym.Env):
         
         # Agent position and velocity
         self.agent_pos = None
+        self.agent_vel = None
         self.step_count = 0
         
-        # Action space: 2D continuous velocity
+        # Action space: 2D continuous acceleration
         self.action_space = spaces.Box(
             low=-max_speed,
             high=max_speed,
@@ -330,6 +330,7 @@ class PointGoal(gym.Env):
             self.goal_pos = self._default_goal_pos
         
         self.agent_pos = np.array(self.start_pos, dtype=np.float32)
+        self.agent_vel = np.zeros(2, dtype=np.float32)
         self.step_count = 0
         
         return self._get_obs(), {}
@@ -338,19 +339,24 @@ class PointGoal(gym.Env):
         """Step environment.
         
         Args:
-            action: 2D velocity action, clipped to [-max_speed, max_speed]
+            action: 2D acceleration action
             
         Returns:
             Tuple of (observation, reward, terminated, truncated, info)
         """
-        # Ensure action is numpy array and clip to max speed
+        # Ensure action is numpy array
         action = np.array(action, dtype=np.float32)
-        action = np.clip(action, -self.max_speed, self.max_speed)
+        
+        # Update velocity by acceleration
+        self.agent_vel = self.agent_vel + action
+        
+        # Clip velocity to max_speed
+        self.agent_vel = np.clip(self.agent_vel, -self.max_speed, self.max_speed)
         
         # Update position via velocity
-        self.agent_pos = self.agent_pos + action
+        self.agent_pos = self.agent_pos + self.agent_vel
         
-        # Clamp to plane boundaries
+        # Clamp position to plane boundaries
         half_size = self.plane_size / 2.0
         self.agent_pos[0] = np.clip(self.agent_pos[0], -half_size, half_size)
         self.agent_pos[1] = np.clip(self.agent_pos[1], -half_size, half_size)
@@ -389,7 +395,7 @@ class PointGoal(gym.Env):
         
         # Draw goal (green)
         goal_x, goal_y = to_pixel(self.goal_pos)
-        radius = 8
+        radius = int(self.goal_threshold / self.plane_size * size)
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 if dx*dx + dy*dy <= radius*radius:
@@ -442,7 +448,8 @@ class PointGoal(gym.Env):
     def _euclidean_distance(self, pos1: np.ndarray, pos2: np.ndarray) -> float:
         """Compute euclidean distance between two positions."""
         return float(np.linalg.norm(pos1 - pos2))
-    
+
+    # TODO: Test this
     def optimal_return(self) -> float:
         """Compute optimal return for this episode setup.
         

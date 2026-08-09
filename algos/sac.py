@@ -1,7 +1,6 @@
 """Soft Actor-Critic (SAC) implementation for the RL suite.
 
 This is a compact SAC implementation that supports:
-- discrete action spaces (categorical policy over actions)
 - continuous action spaces (Gaussian policy with tanh squashing)
 
 https://spinningup.openai.com/en/latest/algorithms/sac.html
@@ -28,7 +27,7 @@ from models.mlp import MLP
 from models.policy import ContinuousPolicy, DiscretePolicy
 
 class SAC(Algorithm):
-    """Simple SAC implementation with support for discrete and continuous actions."""
+    """Simple SAC implementation with support for continuous actions."""
 
     requires_sequences = False
 
@@ -60,6 +59,7 @@ class SAC(Algorithm):
         self.obs_dim = self._observation_dim()
         self._critic_input_dim = None
         if self.is_discrete:
+            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             self.action_dim = int(action_space.n)
             self.policy = DiscretePolicy(self.obs_dim, self.action_dim, hidden_dim, hidden_layers=self.hidden_layers).to(self.device)
         else:
@@ -87,6 +87,7 @@ class SAC(Algorithm):
     def act(self, obs: np.ndarray, deterministic: bool = False):
         obs_tensor = self._to_tensor(obs)
         if self.is_discrete:
+            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             action, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
             if deterministic:
                 return int(action.item())
@@ -104,6 +105,7 @@ class SAC(Algorithm):
         done = self._to_tensor(batch['done']).float().unsqueeze(-1)
 
         if self.is_discrete:
+            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             policy_action, policy_logits = self.policy.sample(obs)
             policy_action = policy_action.long()
             log_prob = F.log_softmax(policy_logits, dim=-1)
@@ -131,7 +133,7 @@ class SAC(Algorithm):
                 next_q1 = self.q1_target(torch.cat([next_obs, next_policy_action], dim=-1))
                 next_q2 = self.q2_target(torch.cat([next_obs, next_policy_action], dim=-1))
                 next_q = torch.minimum(next_q1, next_q2)
-                q_target = reward + self.gamma * (1 - done) * (next_q - self.alpha * next_log_prob.unsqueeze(-1))
+                q_target = reward + self.gamma * (1 - done) * (next_q - self.alpha * next_log_prob)
 
             q1_loss = F.mse_loss(self.q1(torch.cat([obs, action], dim=-1)), q_target.detach())
             q2_loss = F.mse_loss(self.q2(torch.cat([obs, action], dim=-1)), q_target.detach())
@@ -146,6 +148,7 @@ class SAC(Algorithm):
 
         # Don't want to backprop policy loss through critic weights
         if self.is_discrete:
+            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             policy_action, policy_logits = self.policy.sample(obs)
             policy_action = policy_action.long()
             log_prob = F.log_softmax(policy_logits, dim=-1)

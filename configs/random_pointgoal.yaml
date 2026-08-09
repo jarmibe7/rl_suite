@@ -4,7 +4,7 @@ env:
   params:
     plane_size: 10
     max_steps: 100
-    max_speed: 1.0
+    max_speed: 0.2
     goal_threshold: 0.1
     goal_pos: null
     start_pos: null
