@@ -11,13 +11,15 @@ class RandomActor(Algorithm):
     
     requires_sequences: bool = False
     
-    def __init__(self, action_space):
+    def __init__(self, action_space, observation_space):
         """Initialize random actor.
         
         Args:
             action_space: Gymnasium action space
+            observation_space: Gymnasium observation space
         """
         self.action_space = action_space
+        self.observation_space = observation_space
         self.is_discrete = isinstance(action_space, spaces.Discrete)
         self.action_shape = getattr(action_space, "shape", ())
         if not self.is_discrete:
