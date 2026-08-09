@@ -101,18 +101,13 @@ class SAC(Algorithm):
         action = self._to_tensor(batch['action'])
         reward = self._to_tensor(batch['reward']).unsqueeze(-1)
         next_obs = self._to_tensor(batch['next_obs'])
-        done = self._to_tensor(batch['done']).unsqueeze(-1)
+        done = self._to_tensor(batch['done']).float().unsqueeze(-1)
 
         if self.is_discrete:
             policy_action, policy_logits = self.policy.sample(obs)
             policy_action = policy_action.long()
-            q1_val = self.q1(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
-            q2_val = self.q2(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
-            min_q = torch.minimum(q1_val, q2_val)
             log_prob = F.log_softmax(policy_logits, dim=-1)
             selected_log_prob = log_prob.gather(1, policy_action.unsqueeze(-1)).squeeze(-1)
-            policy_loss = (self.alpha * (-selected_log_prob) - min_q).mean()
-            policy_entropy = -torch.mean(selected_log_prob)
 
             with torch.no_grad():
                 next_policy_action, next_policy_logits = self.policy.sample(next_obs)
@@ -129,11 +124,6 @@ class SAC(Algorithm):
         else:
             policy_action, mean, log_std = self.policy.sample(obs)
             log_prob = self._log_prob_from_action(policy_action, mean, log_std)
-            q1_val = self.q1(torch.cat([obs, policy_action], dim=-1))
-            q2_val = self.q2(torch.cat([obs, policy_action], dim=-1))
-            min_q = torch.minimum(q1_val, q2_val)
-            policy_loss = (self.alpha * (-log_prob) - min_q).mean()
-            policy_entropy = -torch.mean(log_prob)
 
             with torch.no_grad():
                 next_policy_action, next_mean, next_log_std = self.policy.sample(next_obs)
@@ -153,6 +143,26 @@ class SAC(Algorithm):
         total_q_loss.backward()
         self.q1_optimizer.step()
         self.q2_optimizer.step()
+
+        # Don't want to backprop policy loss through critic weights
+        if self.is_discrete:
+            policy_action, policy_logits = self.policy.sample(obs)
+            policy_action = policy_action.long()
+            log_prob = F.log_softmax(policy_logits, dim=-1)
+            selected_log_prob = log_prob.gather(1, policy_action.unsqueeze(-1)).squeeze(-1)
+            q1_val = self.q1(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
+            q2_val = self.q2(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
+            min_q = torch.minimum(q1_val, q2_val)
+            policy_loss = (self.alpha * (-selected_log_prob) - min_q).mean()
+            policy_entropy = -torch.mean(selected_log_prob)
+        else:
+            policy_action, mean, log_std = self.policy.sample(obs)
+            log_prob = self._log_prob_from_action(policy_action, mean, log_std)
+            q1_val = self.q1(torch.cat([obs, policy_action], dim=-1))
+            q2_val = self.q2(torch.cat([obs, policy_action], dim=-1))
+            min_q = torch.minimum(q1_val, q2_val)
+            policy_loss = (self.alpha * (-log_prob) - min_q).mean()
+            policy_entropy = -torch.mean(log_prob)
 
         policy_loss.backward()
         self.policy_optimizer.step()
