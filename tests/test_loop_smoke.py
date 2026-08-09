@@ -9,7 +9,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from envs.toy_envs import Gridworld
+from envs.gridworld import Gridworld
 from algos.random_actor import RandomActor
 from buffer import ReplayBuffer
 from evaluator import Evaluator
