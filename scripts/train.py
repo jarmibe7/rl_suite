@@ -167,18 +167,19 @@ def validate_config(config: TrainingConfig) -> None:
         raise ValueError(f"total_steps must be positive, got {config.total_steps}")
 
 
-def generate_run_dir(algo_name: str, base_dir: str = 'runs') -> str:
+def generate_run_dir(algo_name: str, env_name: str, base_dir: str = 'runs') -> str:
     """Generate a timestamped run directory.
     
     Args:
         algo_name: Algorithm name
+        env_name: Environment name
         base_dir: Base directory for runs
         
     Returns:
         Path to run directory
     """
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    run_dir = os.path.join(base_dir, algo_name, timestamp)
+    run_dir = os.path.join(base_dir, algo_name, env_name, timestamp)
     os.makedirs(run_dir, exist_ok=True)
     return run_dir
 
@@ -336,7 +337,7 @@ def main():
     if args.run_dir:
         run_dir = args.run_dir
     else:
-        run_dir = generate_run_dir(config.algo_name)
+        run_dir = generate_run_dir(config.algo_name, config.env_name)
     
     # Build and train
     build_and_train(config, run_dir)
