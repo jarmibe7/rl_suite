@@ -1,13 +1,14 @@
 env:
-  name: Gridworld
+  name: PointGoal
   params:
-    grid_size: 10
-    max_steps: 50
+    plane_size: 10
+    max_steps: 100
+    max_speed: 0.2
+    goal_threshold: 0.2
     goal_pos: null
     start_pos: null
-    size_obs: false
-    random_start: false
-    random_goal: false
+    random_start: true
+    random_goal: true
 
 algo:
   name: sac
@@ -17,7 +18,7 @@ algo:
     learning_rate: 0.00003
     gamma: 0.99                        # Discount factor
     tau: 0.005                         # How much to update the target networks at each update
-    alpha: 0.2                        # Entropy reg coef
+    alpha: 0.2                         # Entropy reg coef
     automatic_entropy_tuning: false
 
 training:
@@ -30,14 +31,14 @@ training:
   seed: 0
 
 evaluation:
-  eval_every_steps: 250
+  eval_every_steps: 1000
   num_episodes: 1
   record_video: true
-  video_every_calls: 4
+  video_every_calls: 1
 
 checkpoint:
   checkpoint_every_steps: 1000
 
 logging:
-  wandb_project: rl-suite
-  wandb_entity: null
+  wandb_project: jared-rl
+  wandb_entity: murphey-lab-nu

@@ -5,6 +5,14 @@ import numpy as np
 from typing import Optional, Any
 
 
+GYM_ENV_ALIASES = {
+    'Pendulum': 'Pendulum-v1',
+    'Pendulum-v1': 'Pendulum-v1',
+    'MountainCarContinuous': 'MountainCarContinuous-v0',
+    'MountainCarContinuous-v0': 'MountainCarContinuous-v0',
+}
+
+
 class ObsActionWrapper(gym.Wrapper):
     """Base wrapper for standardizing observation and action interfaces.
     
@@ -123,17 +131,25 @@ class NormObsWrapper(gym.Wrapper):
         return obs
 
 
-def make_env(env_id: str, seed: int = 0, **kwargs) -> gym.Env:
+def make_env(
+    env_id: str,
+    seed: int = 0,
+    render_mode: Optional[str] = None,
+    **kwargs,
+) -> gym.Env:
     """Create and wrap a Gymnasium environment.
     
     Args:
         env_id: Environment ID (e.g., 'CartPole-v1', 'Gridworld', 'PointGoal')
         seed: Random seed
+        render_mode: Optional Gymnasium render mode
         **kwargs: Additional arguments for environment
         
     Returns:
         Wrapped environment
     """
+    env_id = GYM_ENV_ALIASES.get(env_id, env_id)
+
     # Special handling for custom environments
     if env_id == 'Gridworld':
         from envs.gridworld import Gridworld
@@ -143,8 +159,11 @@ def make_env(env_id: str, seed: int = 0, **kwargs) -> gym.Env:
         env = PointGoal(**kwargs)
     else:
         # Standard Gymnasium environments
-        env = gym.make(env_id)
-    
+        if render_mode is None:
+            env = gym.make(env_id)
+        else:
+            env = gym.make(env_id, render_mode=render_mode)
+
     # Wrap with standardization
     env = ObsActionWrapper(env)
     

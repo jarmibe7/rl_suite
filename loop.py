@@ -60,6 +60,9 @@ class Trainer:
         self.eval_every_steps = eval_every_steps
         self.checkpoint_every_steps = checkpoint_every_steps
         
+        # Validate eval_every_steps alignment with episode length
+        self._validate_eval_alignment(env, eval_every_steps)
+        
         # Set seeds
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -78,6 +81,46 @@ class Trainer:
         
         self.global_step = 0
         self.episode_count = 0
+    
+    def _validate_eval_alignment(self, env, eval_every_steps: int) -> None:
+        """Warn if eval_every_steps is not divisible by episode length.
+        
+        This can cause evaluation to happen mid-episode, which may cause
+        training episodes to be cut short. This is allowed but not recommended.
+        
+        Args:
+            env: Gymnasium environment (may have TimeLimit wrapper)
+            eval_every_steps: Evaluation frequency in steps
+        """
+        if eval_every_steps == 0:
+            return  # No evaluation, so alignment doesn't matter
+        
+        # Find max_episode_steps from TimeLimit wrapper or spec
+        max_episode_steps = None
+        
+        # Check TimeLimit wrapper
+        current = env
+        while hasattr(current, 'env'):
+            if hasattr(current, '_max_episode_steps'):
+                max_episode_steps = current._max_episode_steps
+                break
+            current = current.env
+        
+        # Fallback to spec
+        if max_episode_steps is None and hasattr(env, 'spec') and hasattr(env.spec, 'max_episode_steps'):
+            max_episode_steps = env.spec.max_episode_steps
+        
+        # If we found episode length, check alignment
+        if max_episode_steps is not None:
+            if eval_every_steps % max_episode_steps != 0:
+                print(
+                    f"\nWARNING: eval_every_steps ({eval_every_steps}) is not divisible by "
+                    f"environment max_episode_steps ({max_episode_steps}).\n"
+                    f"This means evaluation may happen mid-episode, causing training episodes "
+                    f"to be interrupted.\n"
+                    f"Suggested values for eval_every_steps: {max_episode_steps}, {2 * max_episode_steps}, "
+                    f"{3 * max_episode_steps}, ...\n"
+                )
     
     def run(self, total_env_steps: int) -> None:
         """Run training loop.
@@ -183,6 +226,10 @@ class Trainer:
                             f'eval/{k}': v for k, v in eval_metrics.items()
                         }
                         self.logger.log(prefixed_eval, step=self.global_step)
+                        
+                        # Reset environment after evaluation
+                        obs, _ = self.env.reset()
+                        self.algo.reset()
                     
                     # Checkpointing
                     if (self.checkpoint_every_steps > 0 and

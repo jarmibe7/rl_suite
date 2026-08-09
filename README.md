@@ -8,7 +8,7 @@ RL Suite is designed to:
 - **Separate concerns**: The training loop, buffer, evaluation, and logging are algorithm-agnostic
 - **Enable experimentation**: Easy to swap algorithms and environments without touching core infrastructure
 - **Minimize bloat**: Focused design with only what's needed for the use case
-- **Use W&B for logging**: Integrated Weights & Biases support for experiment tracking
+- **Use Wandb for logging**: Integrated Wandb support for live plotting and logging
 
 ## Architecture
 
@@ -20,7 +20,7 @@ rl_suite/
 ├── evaluator.py           # Evaluation utils
 ├── logger.py              # WandB logging wrapper
 ├── envs/
-│   ├── toy_envs.py        # Gridworld environment
+│   ├── gridworld.py       # Gridworld and point-goal environments
 │   └── wrappers.py        # Environment standardization
 ├── configs/               # YAML configurations
 ├── scripts/
@@ -42,7 +42,7 @@ pip install gymnasium pyyaml torch wandb tqdm opencv-python
 python scripts/train.py --config configs/random_gridworld.yaml
 ```
 
-Results are saved to `runs/<algo>/<timestamp>/`.
+Results are saved to `runs/<algo>/<env>/<timestamp>/`.
 
 ## Components
 
@@ -67,7 +67,7 @@ Main loop that:
 1. Steps environment with `algo.act(obs)`
 2. Stores transitions/episodes in buffer
 3. Logs episode returns and lengths
-4. Updates algorithm once buffer is full
+4. Samples from buffer and updates algorithm
 5. Evaluates periodically
 6. Checkpoints periodically
 7. Handles cleanup on exit or exception
@@ -79,7 +79,7 @@ Supports video recording (with opencv).
 
 ### Logger
 
-Wrapper around Weights & Biases for experiment tracking.
+Wrapper around Wandb for live experiment tracking.
 All metrics logged with `train/` and `eval/` prefixes.
 
 ## Configuration
@@ -92,19 +92,13 @@ Configs are YAML files with sections:
 - `checkpoint`: Save frequency
 - `logging`: WandB project and entity
 
-See `configs/random_gridworld.yaml` for an example.
+See `configs/sac/sac_pointgoal.yaml` for an example.
 
 ## Testing
 
 ```bash
 # Run all tests
 pytest tests/ -v
-
-# Run specific test
-pytest tests/test_buffer.py -v
-
-# Run with output
-pytest tests/test_loop_smoke.py -v -s
 
 # Run training without logging
 WANDB_MODE=offline python scripts/train.py --config configs/random_gridworld.yaml
@@ -126,7 +120,7 @@ WANDB_MODE=offline python scripts/train.py --config configs/random_gridworld.yam
        
        def update(self, batch):
            # Return dict of metrics
-           return {'loss': 0.5, 'entropy': 0.3}
+           return {'loss': 0.5, 'entropy': 0.3, ...}
        
        def save(self, path):
            ...
@@ -143,16 +137,23 @@ WANDB_MODE=offline python scripts/train.py --config configs/random_gridworld.yam
    }
    ```
 
-3. Create config in `configs/my_algo_*.yaml`
+3. Create config in `configs/my_algo/my_algo_*.yaml`
 
-4. Run: `python scripts/train.py --config configs/my_algo_*.yaml`
+4. Run: `python scripts/train.py --config configs/my_algo/my_algo_*.yaml`
 
 ### Adding a New Environment
 
 1. Implement Gymnasium-compatible environment or wrap existing
 2. Use `envs/wrappers.py` to standardize interface
-3. Register in `make_env()` in `wrappers.py`
+3. Register in `make_env()` in `wrappers.py` or add a Gymnasium alias there
 4. Create config in `configs/*.yaml`
+
+### Built-in Environment Names
+
+- `Gridworld`
+- `PointGoal`
+- `Pendulum` or `Pendulum-v1`
+- `MountainCarContinuous` or `MountainCarContinuous-v0`
 
 ## Notes
 

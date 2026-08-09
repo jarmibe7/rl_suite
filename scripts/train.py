@@ -235,7 +235,13 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
     
     # Build environment
     print("\nBuilding environment...")
-    env = make_env(config.env_name, seed=config.seed, **config.env_params)
+    render_mode = 'rgb_array' if config.record_video else None
+    env = make_env(
+        config.env_name,
+        seed=config.seed,
+        render_mode=render_mode,
+        **config.env_params,
+    )
     print(f"Environment observation shape: {env.observation_space.shape}")
     print(f"Environment action shape: {env.action_space.shape}")
     
@@ -262,6 +268,8 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
         project=config.wandb_project,
         entity=config.wandb_entity,
         run_name=os.path.basename(run_dir),
+        algo_name=config.algo_name,
+        env_name=config.env_name,
         config={k: v for k, v in vars(config).items()},
         run_dir=run_dir,
     )

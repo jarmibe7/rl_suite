@@ -13,6 +13,8 @@ class Logger:
         project: str,
         entity: Optional[str] = None,
         run_name: Optional[str] = None,
+        algo_name: Optional[str] = None,
+        env_name: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
         run_dir: Optional[str] = None,
     ):
@@ -22,12 +24,14 @@ class Logger:
             project: WandB project name
             entity: WandB entity/team name (optional)
             run_name: Human-readable run name
+            algo_name: Algorithm name
+            env_name: Environment name
             config: Config dictionary to log
             run_dir: Directory to save run artifacts
         """
         self.project = project
         self.entity = entity
-        self.run_name = run_name
+        self.run_name = run_name + f"_{algo_name}_{env_name}" if algo_name and env_name else run_name
         self.config = config or {}
         self.run_dir = run_dir
 
@@ -39,7 +43,7 @@ class Logger:
         self.run = wandb.init(
             project=project,
             entity=entity,
-            name=run_name,
+            name=self.run_name,
             config=self.config,
             dir=run_dir,
             mode=init_mode,

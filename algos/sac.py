@@ -94,8 +94,8 @@ class SAC(Algorithm):
             return int(action.item())
 
         action, _, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
-        action = action.squeeze(0).detach().cpu().numpy()
-        return action
+        action = action.detach().cpu().numpy().reshape(self.action_space.shape)
+        return action.astype(np.float32)
 
     def update(self, batch: Dict[str, np.ndarray]) -> Dict[str, float]:
         obs = self._to_tensor(batch['obs'])
