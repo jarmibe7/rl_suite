@@ -15,13 +15,12 @@ Each config file specifies:
 ## Available Environments
 
 - `Gridworld`: Toy environment
-- `CartPole-v1`: ClassicControl environment
-- `Pendulum-v1`: Continuous control baseline
 
 ## Available Algorithms
 
-- `random`: Random policy (baseline)
-- More algorithms coming soon (Dreamer, SAC, PPO, etc.)
+- `random`: Random policy
+- `SAC`: Soft Actor-Critic
+- More algs coming soon !!! :3
 
 ## Example Configs
 

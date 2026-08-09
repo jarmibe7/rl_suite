@@ -127,17 +127,20 @@ def make_env(env_id: str, seed: int = 0, **kwargs) -> gym.Env:
     """Create and wrap a Gymnasium environment.
     
     Args:
-        env_id: Environment ID (e.g., 'CartPole-v1', 'Gridworld')
+        env_id: Environment ID (e.g., 'CartPole-v1', 'Gridworld', 'PointGoal')
         seed: Random seed
         **kwargs: Additional arguments for environment
         
     Returns:
         Wrapped environment
     """
-    # Special handling for custom Gridworld
+    # Special handling for custom environments
     if env_id == 'Gridworld':
-        from envs.toy_envs import Gridworld
+        from envs.gridworld import Gridworld
         env = Gridworld(**kwargs)
+    elif env_id == 'PointGoal':
+        from envs.gridworld import PointGoal
+        env = PointGoal(**kwargs)
     else:
         # Standard Gymnasium environments
         env = gym.make(env_id)

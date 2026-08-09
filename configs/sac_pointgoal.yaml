@@ -1,11 +1,12 @@
 env:
-  name: Gridworld
+  name: PointGoal
   params:
-    grid_size: 10
-    max_steps: 50
+    plane_size: 10
+    max_steps: 100
+    max_speed: 1.0
+    goal_threshold: 0.1
     goal_pos: null
     start_pos: null
-    size_obs: false
     random_start: false
     random_goal: false
 
