@@ -24,7 +24,7 @@ def test_trainer_smoke_end_to_end():
         env = Gridworld(grid_size=5, max_steps=10)
         
         # Create algorithm
-        algo = RandomActor(env.action_space)
+        algo = RandomActor(env.action_space, env.observation_space)
         
         # Create buffer
         buffer = ReplayBuffer(capacity=100, sequence_length=None)
@@ -82,7 +82,7 @@ def test_trainer_keyboard_interrupt_cleanup():
     """Test that Trainer properly cleans up on KeyboardInterrupt."""
     with tempfile.TemporaryDirectory() as tmpdir:
         env = Gridworld(grid_size=5, max_steps=10)
-        algo = RandomActor(env.action_space)
+        algo = RandomActor(env.action_space, env.observation_space)
         buffer = ReplayBuffer(capacity=100, sequence_length=None)
         
         logger = Logger(

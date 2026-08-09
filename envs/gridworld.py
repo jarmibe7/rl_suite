@@ -225,7 +225,7 @@ class Gridworld(gym.Env):
         for step in range(int(dist_to_goal) - 1, -1, -1):
             optimal_return -= step
 
-        return optimal_return
+        return optimal_return / self.grid_size
 
 
 class PointGoal(gym.Env):

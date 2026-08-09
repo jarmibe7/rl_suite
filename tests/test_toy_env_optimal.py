@@ -91,7 +91,7 @@ class TestGridworldEnvironment:
         # The environment rewards after each move using the new distance:
         # rewards: -2, -1, 0
         # Total: -3
-        expected = -(2 + 1 + 0)
+        expected = -(2 + 1 + 0) / env.grid_size
         
         assert optimal == expected, f"Expected optimal return {expected}, got {optimal}"
 
