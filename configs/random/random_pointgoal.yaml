@@ -28,7 +28,7 @@ training:
 
 # Evaluation configuration
 evaluation:
-  eval_every_steps: 1000
+  eval_every_episodes: 10
   num_episodes: 1
   record_video: true
   video_every_calls: 1

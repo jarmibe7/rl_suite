@@ -43,7 +43,7 @@ class TrainingConfig:
     seed: int = 0
     
     # Evaluation
-    eval_every_steps: int = 1000
+    eval_every_episodes: int = 10
     num_eval_episodes: int = 5
     record_video: bool = True
     video_every_calls: int = 1
@@ -103,7 +103,7 @@ def load_config(config_path: str) -> TrainingConfig:
         seed=training_config.get('seed', 0),
         
         # Evaluation
-        eval_every_steps=eval_config.get('eval_every_steps', 1000),
+        eval_every_episodes=eval_config.get('eval_every_episodes', 10),
         num_eval_episodes=eval_config.get('num_episodes', 5),
         record_video=eval_config.get('record_video', True),
         video_every_calls=eval_config.get('video_every_calls', 1),
@@ -222,7 +222,7 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
                 'seed': config.seed,
             },
             'evaluation': {
-                'eval_every_steps': config.eval_every_steps,
+                'eval_every_episodes': config.eval_every_episodes,
                 'num_episodes': config.num_eval_episodes,
                 'record_video': config.record_video,
                 'video_every_calls': config.video_every_calls,
@@ -299,7 +299,7 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
         start_training_after=config.start_training_after,
         updates_per_step=config.updates_per_step,
         batch_size=config.batch_size,
-        eval_every_steps=config.eval_every_steps,
+        eval_every_episodes=config.eval_every_episodes,
         checkpoint_every_steps=config.checkpoint_every_steps,
         seed=config.seed,
     )

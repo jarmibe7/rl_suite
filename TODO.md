@@ -1,1 +1,2 @@
-[] Need to make eval happen every n terminations instead of every n steps. I think it is cutting the termination of some episodes, making them much less likely to end up being sampled. This could be causing policies to get stuck in local minima. Particularly visible in PointGoal SAC, where the agent moves very close to the goal but never terminates the episode.
+[] Need to figure out how to deal with terminated/truncated being saved into the "done" category in the replay buffer. SAC only uses terminated, but other algs might use truncated.
+[] Solved the issue with SAC (- sign in actor loss), but need to figure out what's wrong now. Also need to take a look at the action scaling from ContinuousPolicy output.

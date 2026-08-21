@@ -93,13 +93,15 @@ class SAC(Algorithm):
                 return int(action.item())
             return int(action.item())
 
-        action, _, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
+        _, action, _, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
+        action = action * (self.high - self.low) / 2 + (self.high + self.low) / 2   # Rescale to action space bounds for step
         action = action.detach().cpu().numpy().reshape(self.action_space.shape)
         return action.astype(np.float32)
 
     def update(self, batch: Dict[str, np.ndarray]) -> Dict[str, float]:
         obs = self._to_tensor(batch['obs'])
         action = self._to_tensor(batch['action'])
+        action = (action - self.low) / (self.high - self.low) * 2 - 1    # Normalize action back to [-1, 1] range, originally scaled up to action space bounds in act()
         reward = self._to_tensor(batch['reward']).unsqueeze(-1)
         next_obs = self._to_tensor(batch['next_obs'])
         done = self._to_tensor(batch['done']).float().unsqueeze(-1)
@@ -124,12 +126,12 @@ class SAC(Algorithm):
             q1_loss = F.mse_loss(self.q1(torch.cat([obs, action.float().unsqueeze(-1)], dim=-1)), q_target.detach())
             q2_loss = F.mse_loss(self.q2(torch.cat([obs, action.float().unsqueeze(-1)], dim=-1)), q_target.detach())
         else:
-            policy_action, mean, log_std = self.policy.sample(obs)
-            log_prob = self._log_prob_from_action(policy_action, mean, log_std)
+            raw_action, policy_action, mean, log_std = self.policy.sample(obs)
+            log_prob = self._log_prob_from_action(raw_action, mean, log_std)
 
             with torch.no_grad():
-                next_policy_action, next_mean, next_log_std = self.policy.sample(next_obs)
-                next_log_prob = self._log_prob_from_action(next_policy_action, next_mean, next_log_std)
+                next_raw_action, next_policy_action, next_mean, next_log_std = self.policy.sample(next_obs)
+                next_log_prob = self._log_prob_from_action(next_raw_action, next_mean, next_log_std)
                 next_q1 = self.q1_target(torch.cat([next_obs, next_policy_action], dim=-1))
                 next_q2 = self.q2_target(torch.cat([next_obs, next_policy_action], dim=-1))
                 next_q = torch.minimum(next_q1, next_q2)
@@ -159,12 +161,12 @@ class SAC(Algorithm):
             policy_loss = (self.alpha * (-selected_log_prob) - min_q).mean()
             policy_entropy = -torch.mean(selected_log_prob)
         else:
-            policy_action, mean, log_std = self.policy.sample(obs)
-            log_prob = self._log_prob_from_action(policy_action, mean, log_std)
+            raw_action, policy_action, mean, log_std = self.policy.sample(obs)
+            log_prob = self._log_prob_from_action(raw_action, mean, log_std)
             q1_val = self.q1(torch.cat([obs, policy_action], dim=-1))
             q2_val = self.q2(torch.cat([obs, policy_action], dim=-1))
             min_q = torch.minimum(q1_val, q2_val)
-            policy_loss = (self.alpha * (-log_prob) - min_q).mean()
+            policy_loss = (self.alpha * (log_prob) - min_q).mean()
             policy_entropy = -torch.mean(log_prob)
 
         policy_loss.backward()

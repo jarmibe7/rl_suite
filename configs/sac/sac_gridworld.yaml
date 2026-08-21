@@ -30,7 +30,7 @@ training:
   seed: 0
 
 evaluation:
-  eval_every_steps: 250
+  eval_every_episodes: 10
   num_episodes: 1
   record_video: true
   video_every_calls: 4

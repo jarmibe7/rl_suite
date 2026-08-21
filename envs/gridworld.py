@@ -366,6 +366,7 @@ class PointGoal(gym.Env):
         # Compute reward: negative euclidean distance to goal
         obs = self._get_obs()
         reward = -self._euclidean_distance(self.agent_pos, np.array(self.goal_pos)) / self.plane_size
+        reward *= 0.01
         
         # Check if goal reached
         dist = self._euclidean_distance(self.agent_pos, np.array(self.goal_pos))

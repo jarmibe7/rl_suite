@@ -22,21 +22,23 @@ class ContinuousPolicy(nn.Module):
     def forward(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         h = self.backbone(obs)
         mean = self.mean_layer(h)
-        log_std = torch.tanh(self.log_std_layer(h))
-        log_std = -0.5 + 0.5 * log_std
+        # log_std = torch.tanh(self.log_std_layer(h))
+        # log_std = -0.5 + 0.5 * log_std
+        log_std = torch.clamp(self.log_std_layer(h), min=-20, max=2)
         return mean, log_std
 
     def sample(self, obs: torch.Tensor, deterministic: bool = False):
         mean, log_std = self(obs)
         std = torch.exp(log_std)
         if deterministic:               # TODO: Is this the right way to handle deterministic actions for continuous policies?
+            raw_action = mean
             action = torch.tanh(mean)
-            return action, mean, log_std
+            return raw_action, action, mean, log_std
 
         normal = Normal(mean, std)
         raw_action = normal.rsample()
         action = torch.tanh(raw_action)
-        return action, mean, log_std
+        return raw_action, action, mean, log_std
 
 
 class DiscretePolicy(nn.Module):

@@ -27,7 +27,7 @@ class Trainer:
         start_training_after: int = 1000,
         updates_per_step: int = 1,
         batch_size: int = 32,
-        eval_every_steps: int = 1000,
+        eval_every_episodes: int = 10,
         checkpoint_every_steps: int = 10000,
         seed: int = 0,
     ):
@@ -43,7 +43,7 @@ class Trainer:
             start_training_after: Number of steps before starting training
             updates_per_step: Number of weight update steps per environment step
             batch_size: Batch size for training
-            eval_every_steps: Evaluate every N steps
+            eval_every_episodes: Evaluate every N completed episodes
             checkpoint_every_steps: Save checkpoint every N steps
             seed: Random seed
         """
@@ -57,11 +57,8 @@ class Trainer:
         self.start_training_after = start_training_after
         self.updates_per_step = updates_per_step
         self.batch_size = batch_size
-        self.eval_every_steps = eval_every_steps
+        self.eval_every_episodes = eval_every_episodes
         self.checkpoint_every_steps = checkpoint_every_steps
-        
-        # Validate eval_every_steps alignment with episode length
-        self._validate_eval_alignment(env, eval_every_steps)
         
         # Set seeds
         np.random.seed(seed)
@@ -81,46 +78,6 @@ class Trainer:
         
         self.global_step = 0
         self.episode_count = 0
-    
-    def _validate_eval_alignment(self, env, eval_every_steps: int) -> None:
-        """Warn if eval_every_steps is not divisible by episode length.
-        
-        This can cause evaluation to happen mid-episode, which may cause
-        training episodes to be cut short. This is allowed but not recommended.
-        
-        Args:
-            env: Gymnasium environment (may have TimeLimit wrapper)
-            eval_every_steps: Evaluation frequency in steps
-        """
-        if eval_every_steps == 0:
-            return  # No evaluation, so alignment doesn't matter
-        
-        # Find max_episode_steps from TimeLimit wrapper or spec
-        max_episode_steps = None
-        
-        # Check TimeLimit wrapper
-        current = env
-        while hasattr(current, 'env'):
-            if hasattr(current, '_max_episode_steps'):
-                max_episode_steps = current._max_episode_steps
-                break
-            current = current.env
-        
-        # Fallback to spec
-        if max_episode_steps is None and hasattr(env, 'spec') and hasattr(env.spec, 'max_episode_steps'):
-            max_episode_steps = env.spec.max_episode_steps
-        
-        # If we found episode length, check alignment
-        if max_episode_steps is not None:
-            if eval_every_steps % max_episode_steps != 0:
-                print(
-                    f"\nWARNING: eval_every_steps ({eval_every_steps}) is not divisible by "
-                    f"environment max_episode_steps ({max_episode_steps}).\n"
-                    f"This means evaluation may happen mid-episode, causing training episodes "
-                    f"to be interrupted.\n"
-                    f"Suggested values for eval_every_steps: {max_episode_steps}, {2 * max_episode_steps}, "
-                    f"{3 * max_episode_steps}, ...\n"
-                )
     
     def run(self, total_env_steps: int) -> None:
         """Run training loop.
@@ -159,10 +116,10 @@ class Trainer:
                         self._episode_data['obs'].append(obs)
                         self._episode_data['action'].append(action)
                         self._episode_data['reward'].append(reward)
-                        self._episode_data['done'].append(done)
+                        self._episode_data['done'].append(terminated)
                     else:
                         # Transition mode: add immediately
-                        self.buffer.add_step(obs, action, reward, next_obs, done)
+                        self.buffer.add_step(obs, action, reward, next_obs, terminated)
                     
                     # Episode management
                     if done:
@@ -218,18 +175,22 @@ class Trainer:
                                 }
                                 self.logger.log(prefixed_metrics, step=self.global_step)
                     
-                    # Evaluation
-                    if (self.eval_every_steps > 0 and
-                        self.global_step % self.eval_every_steps == 0):
+                    # Evaluation happens after completed episodes only.
+                    if (done and
+                        self.eval_every_episodes > 0 and
+                        self.episode_count % self.eval_every_episodes == 0):
                         eval_metrics = self.evaluator.run(self.global_step)
                         prefixed_eval = {
                             f'eval/{k}': v for k, v in eval_metrics.items()
                         }
                         self.logger.log(prefixed_eval, step=self.global_step)
-                        
-                        # Reset environment after evaluation
+
+                        # Evaluator uses the same env instance, so restore
+                        # training state before the next env.step call.
                         obs, _ = self.env.reset()
                         self.algo.reset()
+                        episode_return = 0.0
+                        episode_length = 0
                     
                     # Checkpointing
                     if (self.checkpoint_every_steps > 0 and

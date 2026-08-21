@@ -15,15 +15,15 @@ algo:
   params:
     hidden_dim: 64
     hidden_layers: 2
-    learning_rate: 0.00003
+    learning_rate: 0.0003
     gamma: 0.99                        # Discount factor
     tau: 0.005                         # How much to update the target networks at each update
     alpha: 0.2                         # Entropy reg coef
-    automatic_entropy_tuning: false
+    automatic_entropy_tuning: true
 
 training:
   total_steps: 50000
-  batch_size: 32
+  batch_size: 128
   buffer_capacity: 50000
   buffer_sequence_length: null
   start_training_after: 500
@@ -31,7 +31,7 @@ training:
   seed: 0
 
 evaluation:
-  eval_every_steps: 1000
+  eval_every_episodes: 10
   num_episodes: 1
   record_video: true
   video_every_calls: 1
