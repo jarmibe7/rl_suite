@@ -106,6 +106,7 @@ class SAC(Algorithm):
         next_obs = self._to_tensor(batch['next_obs'])
         done = self._to_tensor(batch['done']).float().unsqueeze(-1)
 
+        # Compute target Q-values
         if self.is_discrete:
             raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             policy_action, policy_logits = self.policy.sample(obs)
@@ -137,7 +138,7 @@ class SAC(Algorithm):
                 next_q = torch.minimum(next_q1, next_q2)
                 q_target = reward + self.gamma * (1 - done) * (next_q - self.alpha * next_log_prob)
 
-            q1_loss = F.mse_loss(self.q1(torch.cat([obs, action], dim=-1)), q_target.detach())
+            q1_loss = F.mse_loss(self.q1(torch.cat([obs, action], dim=-1)), q_target.detach())  # Eqn 7-8
             q2_loss = F.mse_loss(self.q2(torch.cat([obs, action], dim=-1)), q_target.detach())
 
         self.q1_optimizer.zero_grad()
@@ -166,7 +167,7 @@ class SAC(Algorithm):
             q1_val = self.q1(torch.cat([obs, policy_action], dim=-1))
             q2_val = self.q2(torch.cat([obs, policy_action], dim=-1))
             min_q = torch.minimum(q1_val, q2_val)
-            policy_loss = (self.alpha * (log_prob) - min_q).mean()
+            policy_loss = (self.alpha * (log_prob) - min_q).mean()  # Eqn 12
             policy_entropy = -torch.mean(log_prob)
 
         policy_loss.backward()

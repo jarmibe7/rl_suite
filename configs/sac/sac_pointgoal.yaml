@@ -1,3 +1,4 @@
+# Look at Appendix D in SAC paper
 env:
   name: PointGoal
   params:
