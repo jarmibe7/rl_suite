@@ -23,9 +23,9 @@ algo:
     automatic_entropy_tuning: true
 
 training:
-  total_steps: 50000
+  total_steps: 10000
   batch_size: 128
-  buffer_capacity: 50000
+  buffer_capacity: 10000
   buffer_sequence_length: null
   start_training_after: 500
   updates_per_step: 1

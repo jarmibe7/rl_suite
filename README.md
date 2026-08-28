@@ -31,15 +31,16 @@ rl_suite/
 ## Quick Start
 
 ### Installation
+First make a virtual environment. Then:
 
 ```bash
-pip install gymnasium pyyaml torch wandb tqdm opencv-python
+pip install -r requirements.txt
 ```
 
 ### Training
 
 ```bash
-python scripts/train.py --config configs/random_gridworld.yaml
+python scripts/train.py --config configs/<alg_name>/<config_name>.yaml
 ```
 
 Results are saved to `runs/<algo>/<env>/<timestamp>/`.
@@ -101,7 +102,7 @@ See `configs/sac/sac_pointgoal.yaml` for an example.
 pytest tests/ -v
 
 # Run training without logging
-WANDB_MODE=offline python scripts/train.py --config configs/random_gridworld.yaml
+WANDB_MODE=offline python scripts/train.py --config configs/<alg_name>/<config_name>.yaml
 ```
 
 ## Extending

@@ -1,7 +1,8 @@
-gymnasium[classic-control]==1.0
-numpy==2.5.2
-opencv_python==5.0.0.93
-pytest==9.1.1
-PyYAML==6.0.3
-torch==2.13.0
-tqdm==4.70.0
+gymnasium[classic-control]
+numpy
+opencv_python
+pytest
+PyYAML
+torch
+tqdm
+wandb
