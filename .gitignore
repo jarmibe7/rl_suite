@@ -3,6 +3,7 @@ runs/
 Instructions.md
 Changes.md
 Fixes.md
+Secrets.md
 __pycache__/
 .vscode/
 .pytest_cache/

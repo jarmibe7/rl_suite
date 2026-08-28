@@ -13,6 +13,8 @@ algo:
     alpha: 0.3
     automatic_entropy_tuning: false
 
+device: auto
+
 training:
   total_steps: 100000
   batch_size: 32

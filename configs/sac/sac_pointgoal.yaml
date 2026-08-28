@@ -1,4 +1,4 @@
-# Look at Appendix D in SAC paper
+# FINAL HYPERPARAMETERS
 env:
   name: PointGoal
   params:
@@ -16,16 +16,18 @@ algo:
   params:
     hidden_dim: 64
     hidden_layers: 2
-    learning_rate: 0.0003
+    learning_rate: 0.003
     gamma: 0.99                        # Discount factor
     tau: 0.005                         # How much to update the target networks at each update
     alpha: 0.2                         # Entropy reg coef
     automatic_entropy_tuning: true
 
+device: cuda:1
+
 training:
-  total_steps: 10000
+  total_steps: 50000
   batch_size: 128
-  buffer_capacity: 10000
+  buffer_capacity: 50000
   buffer_sequence_length: null
   start_training_after: 500
   updates_per_step: 1

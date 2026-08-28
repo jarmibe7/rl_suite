@@ -20,6 +20,8 @@ algo:
     alpha: 0.2                        # Entropy reg coef
     automatic_entropy_tuning: false
 
+device: auto
+
 training:
   total_steps: 50000
   batch_size: 32

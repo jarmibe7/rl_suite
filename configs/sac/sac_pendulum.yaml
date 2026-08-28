@@ -1,3 +1,4 @@
+# FINAL HYPERPARAMETERS
 env:
   name: Pendulum
   params: {}
@@ -7,11 +8,13 @@ algo:
   params:
     hidden_dim: 64
     hidden_layers: 2
-    learning_rate: 0.0003
-    gamma: 0.98
+    learning_rate: 0.003
+    gamma: 0.99
     tau: 0.005
     alpha: 0.2
     automatic_entropy_tuning: true
+
+device: cuda:1
 
 training:
   total_steps: 100000

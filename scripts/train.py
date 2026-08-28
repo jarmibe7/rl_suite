@@ -1,6 +1,7 @@
 """Training entrypoint script."""
 
 import argparse
+import inspect
 import yaml
 import os
 import sys
@@ -41,6 +42,9 @@ class TrainingConfig:
     start_training_after: int = 1000
     updates_per_step: int = 1
     seed: int = 0
+    
+    # Device
+    device: str = 'auto'
     
     # Evaluation
     eval_every_episodes: int = 10
@@ -92,6 +96,9 @@ def load_config(config_path: str) -> TrainingConfig:
         # Algorithm
         algo_name=algo_config.get('name', 'random'),
         algo_params=algo_config.get('params', {}),
+        
+        # Device
+        device=config_dict.get('device', 'auto'),
         
         # Training
         total_steps=training_config.get('total_steps', 10000),
@@ -212,6 +219,7 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
                 'name': config.algo_name,
                 'params': config.algo_params,
             },
+            'device': config.device,
             'training': {
                 'total_steps': config.total_steps,
                 'batch_size': config.batch_size,
@@ -247,8 +255,16 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
     
     # Build algorithm
     print("\nBuilding algorithm...")
+    resolved_device = (
+        ('cuda' if torch.cuda.is_available() else 'cpu')
+        if config.device in (None, 'auto') else config.device
+    )
+    print(f"Device: {resolved_device}")
     algo_class = ALGO_REGISTRY[config.algo_name]
-    algo = algo_class(env.action_space, env.observation_space, **config.algo_params)
+    algo_params = dict(config.algo_params)
+    if 'device' in inspect.signature(algo_class.__init__).parameters:
+        algo_params.setdefault('device', resolved_device)
+    algo = algo_class(env.action_space, env.observation_space, **algo_params)
     print(f"Algorithm created: {config.algo_name}")
     
     # Build buffer
