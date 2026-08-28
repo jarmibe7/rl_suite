@@ -1,2 +1,2 @@
 [] Need to figure out how to deal with terminated/truncated being saved into the "done" category in the replay buffer. SAC only uses terminated, but other algs might use truncated.
-[] Solved the issue with SAC (- sign in actor loss), but need to figure out what's wrong now. Also need to take a look at the action scaling from ContinuousPolicy output.
+[] Create a policy playback script that can play and eval policy checkpoints from run directory
