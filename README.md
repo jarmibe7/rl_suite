@@ -155,6 +155,7 @@ WANDB_MODE=offline python scripts/train.py --config configs/<alg_name>/<config_n
 - `PointGoal`
 - `Pendulum` or `Pendulum-v1`
 - `MountainCarContinuous` or `MountainCarContinuous-v0`
+- `HalfCheetah` or `HalfCheetah-v5`
 
 ## Notes
 

@@ -1,8 +1,10 @@
 gymnasium[classic-control]
+gymnasium[mujoco]
 numpy
 opencv_python
 pytest
 PyYAML
+pyvirtualdisplay
 torch
 tqdm
 wandb

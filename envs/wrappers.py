@@ -10,7 +10,30 @@ GYM_ENV_ALIASES = {
     'Pendulum-v1': 'Pendulum-v1',
     'MountainCarContinuous': 'MountainCarContinuous-v0',
     'MountainCarContinuous-v0': 'MountainCarContinuous-v0',
+    'HalfCheetah': 'HalfCheetah-v5',
+    'HalfCheetah-v5': 'HalfCheetah-v5',
+    'Humanoid': 'Humanoid-v5',
+    'Humanoid-v5': 'Humanoid-v5'
 }
+
+# Env ID prefixes that use MuJoCo's OpenGL offscreen renderer
+MUJOCO_ENV_PREFIXES = (
+    'HalfCheetah', 'Hopper', 'Walker2d', 'Ant', 'Humanoid',
+    'Swimmer', 'Reacher', 'InvertedPendulum', 'InvertedDoublePendulum', 'Pusher',
+)
+
+_virtual_display = None
+
+
+def _ensure_virtual_display() -> None:
+    """Start a virtual X display (once per process) so MuJoCo can create an
+    OpenGL context for offscreen rendering when there is no real display (e.g. over SSH).
+    """
+    global _virtual_display
+    if _virtual_display is None:
+        from pyvirtualdisplay import Display
+        _virtual_display = Display(visible=False, size=(1024, 768))
+        _virtual_display.start()
 
 
 class ObsActionWrapper(gym.Wrapper):
@@ -158,6 +181,10 @@ def make_env(
         from envs.gridworld import PointGoal
         env = PointGoal(**kwargs)
     else:
+        # MuJoCo envs need a virtual display to render over ssh
+        if render_mode is not None and env_id.startswith(MUJOCO_ENV_PREFIXES):
+            _ensure_virtual_display()
+
         # Standard Gymnasium environments
         if render_mode is None:
             env = gym.make(env_id)

@@ -1,14 +1,14 @@
-# FINAL HYPERPARAMETERS
+# 
 env:
-  name: Pendulum
+  name: Humanoid
   params: {}
 
 algo:
   name: sac
   params:
-    hidden_dim: 64
+    hidden_dim: 256
     hidden_layers: 2
-    learning_rate: 0.003
+    learning_rate: 0.0003
     gamma: 0.99
     tau: 0.005
     alpha: 0.2
@@ -17,16 +17,16 @@ algo:
 device: cuda:0
 
 training:
-  total_steps: 100000
-  batch_size: 128
-  buffer_capacity: 100000
+  total_steps: 1000000
+  batch_size: 256
+  buffer_capacity: 1000000
   buffer_sequence_length: null
-  start_training_after: 500
+  start_training_after: 5000
   updates_per_step: 1
   seed: 0
 
 evaluation:
-  eval_every_episodes: 20
+  eval_every_episodes: 200
   num_episodes: 1
   record_video: true
   video_every_calls: 1

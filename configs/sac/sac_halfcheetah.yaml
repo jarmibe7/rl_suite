@@ -1,6 +1,6 @@
 # FINAL HYPERPARAMETERS
 env:
-  name: Pendulum
+  name: HalfCheetah
   params: {}
 
 algo:
