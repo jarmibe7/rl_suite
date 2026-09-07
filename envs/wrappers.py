@@ -1,6 +1,7 @@
 """Environment wrappers to standardize observation and action interfaces."""
 
 import gymnasium as gym
+import gymnasium_robotics   # Import needed to register envs
 import numpy as np
 from typing import Optional, Any
 
@@ -13,13 +14,16 @@ GYM_ENV_ALIASES = {
     'HalfCheetah': 'HalfCheetah-v5',
     'HalfCheetah-v5': 'HalfCheetah-v5',
     'Humanoid': 'Humanoid-v5',
-    'Humanoid-v5': 'Humanoid-v5'
+    'Humanoid-v5': 'Humanoid-v5',
+    'AdroitHandPen': 'AdroitHandPen-v1',
+    'AdroitHandPen-v1': 'AdroitHandPen-v1'
 }
 
 # Env ID prefixes that use MuJoCo's OpenGL offscreen renderer
 MUJOCO_ENV_PREFIXES = (
     'HalfCheetah', 'Hopper', 'Walker2d', 'Ant', 'Humanoid',
     'Swimmer', 'Reacher', 'InvertedPendulum', 'InvertedDoublePendulum', 'Pusher',
+    'AdroitHandPen',
 )
 
 _virtual_display = None

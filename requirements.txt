@@ -1,5 +1,6 @@
 gymnasium[classic-control]
 gymnasium[mujoco]
+gymnasium-robotics[mujoco-py]
 numpy
 opencv_python
 pytest

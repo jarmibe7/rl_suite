@@ -1,0 +1,39 @@
+# 
+env:
+  name: AdroitHandPen
+  params: {}
+
+algo:
+  name: sac
+  params:
+    hidden_dim: 256
+    hidden_layers: 2
+    learning_rate: 0.0003
+    gamma: 0.99
+    tau: 0.005
+    alpha: 0.2
+    automatic_entropy_tuning: true
+
+device: cuda:0
+
+training:
+  total_steps: 3000000
+  batch_size: 256
+  buffer_capacity: 1000000
+  buffer_sequence_length: null
+  start_training_after: 5000
+  updates_per_step: 1
+  seed: 0
+
+evaluation:
+  eval_every_episodes: 200
+  num_episodes: 1
+  record_video: true
+  video_every_calls: 1
+
+checkpoint:
+  checkpoint_every_steps: 20000
+
+logging:
+  wandb_project: jared-rl
+  wandb_entity: murphey-lab-nu
