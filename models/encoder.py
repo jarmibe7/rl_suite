@@ -21,7 +21,6 @@ class ConvEncoder(nn.Module):
         s = conv_params['stride']
         p = conv_params['pad']
 
-        # Define encoder part of autoencoder
         self.encoder_cnn = nn.Sequential(
             nn.Conv2d(self.in_channels, 32, kernel_size=k+2, stride=s-1, padding=p+1),
             nn.ReLU(),

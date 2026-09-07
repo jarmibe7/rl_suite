@@ -7,3 +7,4 @@ Secrets.md
 __pycache__/
 .vscode/
 .pytest_cache/
+data/
