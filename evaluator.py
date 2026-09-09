@@ -112,7 +112,7 @@ class Evaluator:
             if record:
                 frame = self.env.render()
                 if frame is not None:
-                    frames.append(frame)
+                    frames.append(self._compose_frame(frame, obs))
             
             # Get deterministic action
             action = self.algo.act(obs, deterministic=True)
@@ -125,6 +125,16 @@ class Evaluator:
             episode_length += 1
         
         return episode_return, episode_length, frames
+    
+    def _compose_frame(self, frame: np.ndarray, obs: np.ndarray) -> np.ndarray:
+        """Append the algorithm's reconstructed/predicted obs (if any) next to the raw render."""
+        recon = self.algo.predict_obs(obs)
+        if recon is None:
+            return frame
+        import cv2
+        frame = np.asarray(frame)
+        recon = cv2.resize(np.asarray(recon), (frame.shape[1], frame.shape[0]), interpolation=cv2.INTER_NEAREST)
+        return np.concatenate([frame, recon], axis=1)
     
     def _save_video(self, frames: list, path: str, fps: int = 30) -> None:
         """Save frames as a video file.

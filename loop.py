@@ -200,7 +200,7 @@ class Trainer:
                             self.checkpoint_dir,
                             f'checkpoint_{checkpoint_id}.pt'
                         )
-                        self.algo.save(checkpoint_path)
+                        torch.save(self.algo.save(), checkpoint_path)
         
         except KeyboardInterrupt:
             print("\nTraining interrupted by user.")
@@ -208,12 +208,19 @@ class Trainer:
             print(f"\nTraining interrupted by exception: {e}")
             raise
         finally:
+            # Final evaluation
+            final_eval_metrics = self.evaluator.run(self.global_step)
+            prefixed_final_eval = {
+                f'eval/{k}': v for k, v in final_eval_metrics.items()
+            }
+            self.logger.log(prefixed_final_eval, step=self.global_step)
+
             # Save final checkpoint
             final_checkpoint_path = os.path.join(
                 self.checkpoint_dir,
                 'checkpoint_final.pt'
             )
-            self.algo.save(final_checkpoint_path)
+            torch.save(self.algo.save(), final_checkpoint_path)
             
             # Close metrics file
             if self.metrics_file is not None:
