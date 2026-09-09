@@ -25,22 +25,22 @@ algo:
 device: cuda:1
 
 training:
-  total_steps: 50000
+  total_steps: 20000
   batch_size: 128
-  buffer_capacity: 50000
+  buffer_capacity: 20000
   buffer_sequence_length: null
   start_training_after: 500
   updates_per_step: 1
   seed: 0
 
 evaluation:
-  eval_every_episodes: 10
+  eval_every_episodes: 20
   num_episodes: 1
   record_video: true
   video_every_calls: 1
 
 checkpoint:
-  checkpoint_every_steps: 1000
+  checkpoint_every_steps: 2000
 
 logging:
   wandb_project: jared-rl
