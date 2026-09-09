@@ -23,7 +23,7 @@ DATA_DIR = Path("data")
 RUN_DIR = Path("runs/vae")
 OUTPUTS = RUN_DIR / "mnist.pt"
 RENDER_DIR = RUN_DIR / "renders"
-NUM_EPOCHS=10
+NUM_EPOCHS = 10
 BATCH_SIZE = 128
 LATENT_SIZE = 16
 LEARNING_RATE = 1e-3
@@ -58,11 +58,9 @@ def render_reconstructions(model, dataset, epoch, device):
 
 
 def vae_loss(reconstruction, target, mu, log_var, beta):
-	reconstruction_loss = F.binary_cross_entropy(
-		reconstruction, target, reduction="sum"
-	) / target.size(0)
+	reconstruction_loss = F.mse_loss(reconstruction, target, reduction='mean')
 	kl_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-	kl_loss = kl_loss / target.size(0)
+	kl_loss = 1e-4 * (kl_loss / target.size(0))
 	return reconstruction_loss + beta * kl_loss, reconstruction_loss, kl_loss
 
 
@@ -131,6 +129,17 @@ def main():
 		if epoch % RENDER_EVERY == 0:
 			render_reconstructions(model, train_set, epoch, device)
 
+	# Render new sample
+	model.eval()
+	with torch.no_grad():
+		sample = torch.randn(NUM_RENDER, LATENT_SIZE, device=device)
+		sample = model.conv_decoder(sample)
+		RENDER_DIR.mkdir(parents=True, exist_ok=True)
+		vutils.save_image(
+			sample.cpu(), RENDER_DIR / f"sample.png", nrow=NUM_RENDER
+		)
+	
+	
 	OUTPUTS.parent.mkdir(parents=True, exist_ok=True)
 	torch.save(
 		{

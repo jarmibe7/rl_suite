@@ -35,20 +35,20 @@ class Algorithm(ABC):
         pass
 
     @abstractmethod
-    def save(self, path: str) -> None:
-        """Save algorithm state to disk.
+    def save(self) -> Dict:
+        """Return algorithm state as a dict for checkpointing.
         
-        Args:
-            path: Path to save to
+        Returns:
+            Dictionary of state (state dicts, tensors, scalars) to save
         """
         pass
 
     @abstractmethod
-    def load(self, path: str) -> None:
-        """Load algorithm state from disk.
+    def load(self, state: Dict) -> None:
+        """Load algorithm state from a dict.
         
         Args:
-            path: Path to load from
+            state: Dictionary previously returned by save()
         """
         pass
 
@@ -58,3 +58,10 @@ class Algorithm(ABC):
         Default no-op; override for algorithms with recurrent state.
         """
         pass
+
+    def predict_obs(self, obs: np.ndarray) -> None:
+        """Return a reconstructed/predicted observation frame for visualization, or None.
+        
+        Default no-op; override for generative/autoregressive algorithms.
+        """
+        return None

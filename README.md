@@ -52,7 +52,7 @@ Results are saved to `runs/<algo>/<env>/<timestamp>/`.
 All algorithms inherit from `Algorithm` and implement:
 - `act(obs, deterministic=False)`: Select action
 - `update(batch)`: Update parameters, return metrics dict
-- `save/load(path)`: Checkpoint management
+- `save() -> Dict` / `load(state: Dict)`: Checkpoint management (caller handles torch.save/torch.load to disk)
 - `reset()`: Reset internal state (RNNs, etc.)
 - `requires_sequences`: Boolean flag for sequence vs. transition buffer mode
 
@@ -123,10 +123,10 @@ WANDB_MODE=offline python scripts/train.py --config configs/<alg_name>/<config_n
            # Return dict of metrics
            return {'loss': 0.5, 'entropy': 0.3, ...}
        
-       def save(self, path):
+       def save(self):
            ...
        
-       def load(self, path):
+       def load(self, state):
            ...
    ```
 

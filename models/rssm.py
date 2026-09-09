@@ -96,7 +96,7 @@ class RSSM(nn.Module):
     #         image = F.interpolate(image, size=reference.shape[-2:], mode='bilinear', align_corners=False)
     #     return image
 
-    def reparameterize(self, mu, log_var):
+    def _reparameterize(self, mu, log_var):
         std = torch.exp(0.5 * log_var)
         std = torch.clamp(std, min=1e-5, max=1e5)
         eps = torch.randn_like(std)
@@ -107,7 +107,7 @@ class RSSM(nn.Module):
         stats = self.post(torch.cat([enc, h[-1]], dim=-1))
         mu, log_var = stats.chunk(2, dim=-1)
         log_var = torch.clamp(log_var, min=1e-5, max=1e5)
-        z = self.reparameterize(mu, log_var)
+        z = self._reparameterize(mu, log_var)
 
         return mu, log_var, z
     
@@ -119,7 +119,7 @@ class RSSM(nn.Module):
         stats = self.prior(h_next[-1])
         mu, log_var = stats.chunk(2, dim=-1)
         log_var = torch.clamp(log_var, min=1e-5, max=1e5)
-        z_next = self.reparameterize(mu, log_var)
+        z_next = self._reparameterize(mu, log_var)
 
         return h_next, z_next, mu, log_var
     

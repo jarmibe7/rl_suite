@@ -190,30 +190,25 @@ class SAC(Algorithm):
             'policy_entropy': float(policy_entropy.detach().cpu()),
         }
 
-    def save(self, path: str) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        torch.save(
-            {
-                'policy': self.policy.state_dict(),
-                'q1': self.q1.state_dict(),
-                'q2': self.q2.state_dict(),
-                'q1_target': self.q1_target.state_dict(),
-                'q2_target': self.q2_target.state_dict(),
-                'log_alpha': self.log_alpha.detach().cpu(),
-                'alpha': self.alpha,
-            },
-            path,
-        )
+    def save(self) -> Dict:
+        return {
+            'policy': self.policy.state_dict(),
+            'q1': self.q1.state_dict(),
+            'q2': self.q2.state_dict(),
+            'q1_target': self.q1_target.state_dict(),
+            'q2_target': self.q2_target.state_dict(),
+            'log_alpha': self.log_alpha.detach().cpu(),
+            'alpha': self.alpha,
+        }
 
-    def load(self, path: str) -> None:
-        checkpoint = torch.load(path, map_location=self.device)
-        self.policy.load_state_dict(checkpoint['policy'])
-        self.q1.load_state_dict(checkpoint['q1'])
-        self.q2.load_state_dict(checkpoint['q2'])
-        self.q1_target.load_state_dict(checkpoint['q1_target'])
-        self.q2_target.load_state_dict(checkpoint['q2_target'])
-        self.log_alpha = checkpoint['log_alpha'].to(self.device)
-        self.alpha = checkpoint['alpha']
+    def load(self, state: Dict) -> None:
+        self.policy.load_state_dict(state['policy'])
+        self.q1.load_state_dict(state['q1'])
+        self.q2.load_state_dict(state['q2'])
+        self.q1_target.load_state_dict(state['q1_target'])
+        self.q2_target.load_state_dict(state['q2_target'])
+        self.log_alpha = state['log_alpha'].to(self.device)
+        self.alpha = state['alpha']
 
     def reset(self) -> None:
         pass

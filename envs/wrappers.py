@@ -1,5 +1,6 @@
 """Environment wrappers to standardize observation and action interfaces."""
 
+import cv2
 import gymnasium as gym
 import gymnasium_robotics   # Import needed to register envs
 import numpy as np
@@ -158,10 +159,48 @@ class NormObsWrapper(gym.Wrapper):
         return obs
 
 
+class PixelObsWrapper(gym.Wrapper):
+    """Replace the environment's observation with its rendered rgb_array frame."""
+    def __init__(self, env, image_size: int = 64):
+        super().__init__(env)
+
+        if env.render_mode != 'rgb_array':
+            raise ValueError("PixelObsWrapper requires the env to be created with render_mode='rgb_array'")
+
+        self.image_size = image_size
+
+        env.reset()
+        frame = self._process(env.render())
+        self.observation_space = gym.spaces.Box(
+            low=0.0, high=1.0, shape=frame.shape, dtype=np.float32
+        )
+
+    def step(self, action):
+        _, reward, terminated, truncated, info = self.env.step(action)
+        obs = self._process(self.env.render())
+        return obs, reward, terminated, truncated, info
+
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        _, info = self.env.reset(seed=seed, options=options)
+        obs = self._process(self.env.render())
+        return obs, info
+
+    def _process(self, frame):
+        """Resize and normalize the rendered frame for obs"""
+        frame = np.asarray(frame)
+        resized = cv2.resize(
+            frame, (self.image_size, self.image_size), interpolation=cv2.INTER_AREA
+        )
+        normalized = resized.astype(np.float32) / 255.0
+        return normalized
+
+
 def make_env(
     env_id: str,
     seed: int = 0,
     render_mode: Optional[str] = None,
+    pixel_obs: bool = False,
+    pixel_obs_size: int = 64,
     **kwargs,
 ) -> gym.Env:
     """Create and wrap a Gymnasium environment.
@@ -170,12 +209,18 @@ def make_env(
         env_id: Environment ID (e.g., 'CartPole-v1', 'Gridworld', 'PointGoal')
         seed: Random seed
         render_mode: Optional Gymnasium render mode
+        pixel_obs: If True, use the rendered rgb_array frame as the observation
+        pixel_obs_size: Side length (pixels) to downsample rendered frames to when pixel_obs is True
         **kwargs: Additional arguments for environment
         
     Returns:
         Wrapped environment
     """
     env_id = GYM_ENV_ALIASES.get(env_id, env_id)
+
+    # Pixel observations require an rgb_array render to draw from
+    if pixel_obs:
+        render_mode = 'rgb_array'
 
     # Special handling for custom environments
     if env_id == 'Gridworld':
@@ -195,6 +240,16 @@ def make_env(
         else:
             env = gym.make(env_id, render_mode=render_mode)
 
+    if pixel_obs:
+        env = PixelObsWrapper(env, image_size=pixel_obs_size)
+
+    # Test render
+    import matplotlib.pyplot as plt
+    frame = env.render() 
+    plt.imshow(env._process(frame))
+    plt.savefig("obs_test_render.png")
+    plt.close()
+    
     # Wrap with standardization
     env = ObsActionWrapper(env)
     

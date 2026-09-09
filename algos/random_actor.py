@@ -3,7 +3,6 @@ from typing import Dict
 import torch
 from algos.base import Algorithm
 from gymnasium import spaces
-import os
 
 
 class RandomActor(Algorithm):
@@ -51,19 +50,14 @@ class RandomActor(Algorithm):
         """
         return {}
     
-    def save(self, path: str) -> None:
-        """No-op for random actor (stateless).
-        
-        Args:
-            path: Save path (unused)
-        """
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        torch.save({"algorithm": "random_actor", "stateless": True}, path)
+    def save(self) -> Dict:
+        """No-op for random actor (stateless)."""
+        return {"algorithm": "random_actor", "stateless": True}
     
-    def load(self, path: str) -> None:
+    def load(self, state: Dict) -> None:
         """No-op for random actor (stateless).
         
         Args:
-            path: Load path (unused)
+            state: State dict (unused)
         """
         pass

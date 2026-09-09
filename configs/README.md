@@ -6,11 +6,13 @@ This directory contains YAML configuration files for training runs.
 
 Each config file specifies:
 - **env**: Environment name and parameters
+    - `pixel_obs` (bool, optional): use the rendered rgb_array frame as the observation instead of the environment's default observation vector. False if unspecified.
 - **algo**: Algorithm name and parameters
 - **training**: Training hyperparameters
 - **evaluation**: Evaluation settings
 - **checkpoint**: Checkpointing frequency
 - **logging**: WandB logging configuration
+- `device` (string, optional): Training device for torch (e.g. CPU, cuda:0, etc.). Will use GPU if available and unspecified, CPU otherwise.
 
 ## Available Environments
 

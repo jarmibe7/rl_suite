@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from envs.wrappers import make_env
 from algos.random_actor import RandomActor
 from algos.sac import SAC
+from algos.latent_sac import LatentSAC
 from buffer import ReplayBuffer
 from evaluator import Evaluator
 from logger import Logger
@@ -33,6 +34,8 @@ class TrainingConfig:
     # Environment
     env_name: str
     env_params: Dict[str, Any]
+    pixel_obs: bool
+    pixel_obs_size: int
     
     # Algorithm
     algo_name: str
@@ -42,32 +45,33 @@ class TrainingConfig:
     total_steps: int
     batch_size: int
     buffer_capacity: int
-    buffer_sequence_length: Optional[int] = None
-    start_training_after: int = 1000
-    updates_per_step: int = 1
-    seed: int = 0
+    buffer_sequence_length: Optional[int]
+    start_training_after: int
+    updates_per_step: int
+    seed: int
     
     # Device
-    device: str = 'auto'
+    device: str
     
     # Evaluation
-    eval_every_episodes: int = 10
-    num_eval_episodes: int = 5
-    record_video: bool = True
-    video_every_calls: int = 1
+    eval_every_episodes: int
+    num_eval_episodes: int
+    record_video: bool
+    video_every_calls: int
     
     # Checkpointing
-    checkpoint_every_steps: int = 10000
+    checkpoint_every_steps: int
     
     # Logging
-    wandb_project: str = 'rl-suite'
-    wandb_entity: Optional[str] = None
+    wandb_project: str
+    wandb_entity: Optional[str]
 
 
 # Algorithm registry
 ALGO_REGISTRY = {
     'random': RandomActor,
     'sac': SAC,
+    'latent_sac': LatentSAC,
 }
 
 
@@ -96,6 +100,8 @@ def load_config(config_path: str) -> TrainingConfig:
         # Environment
         env_name=env_config.get('name', 'Gridworld'),
         env_params=env_config.get('params', {}),
+        pixel_obs=env_config.get('pixel_obs', False),
+        pixel_obs_size=env_config.get('pixel_obs_size', 64),
         
         # Algorithm
         algo_name=algo_config.get('name', 'random'),
@@ -124,7 +130,7 @@ def load_config(config_path: str) -> TrainingConfig:
         
         # Logging
         wandb_project=logging_config.get('wandb_project', 'rl-suite'),
-        wandb_entity=logging_config.get('wandb_entity', None),
+        wandb_entity=logging_config.get('wandb_entity', 'murphey-lab-nu'),
     )
     
     return config
@@ -218,6 +224,8 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
             'env': {
                 'name': config.env_name,
                 'params': config.env_params,
+                'pixel_obs': config.pixel_obs,
+                'pixel_obs_size': config.pixel_obs_size,
             },
             'algo': {
                 'name': config.algo_name,
@@ -247,11 +255,13 @@ def build_and_train(config: TrainingConfig, run_dir: str) -> None:
     
     # Build environment
     print("\nBuilding environment...")
-    render_mode = 'rgb_array' if config.record_video else None
+    render_mode = 'rgb_array' if (config.record_video or config.pixel_obs) else None
     env = make_env(
         config.env_name,
         seed=config.seed,
         render_mode=render_mode,
+        pixel_obs=config.pixel_obs,
+        pixel_obs_size=config.pixel_obs_size,
         **config.env_params,
     )
     print(f"Environment observation shape: {env.observation_space.shape}")
