@@ -1,4 +1,8 @@
-"""Training entrypoint script."""
+"""
+Training entrypoint script.
+
+WANDB_MODE=online python scripts/train.py --config configs/sac/sac_adroithandpen.yaml
+"""
 
 import argparse
 import inspect

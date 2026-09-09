@@ -1,4 +1,8 @@
-"""Train the convolutional VAE on MNIST."""
+"""
+Train the convolutional VAE on MNIST.
+
+python scripts/train_vae.py
+"""
 
 import random
 import sys
@@ -8,21 +12,26 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torchvision import datasets, transforms, utils as vutils
+from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from models.vae import ConvVAE
 
 DATA_DIR = Path("data")
-OUTPUTS = Path("runs/vae/mnist.pt")
+RUN_DIR = Path("runs/vae")
+OUTPUTS = RUN_DIR / "mnist.pt"
+RENDER_DIR = RUN_DIR / "renders"
 NUM_EPOCHS=10
 BATCH_SIZE = 128
 LATENT_SIZE = 16
 LEARNING_RATE = 1e-3
 BETA = 1.0
 SEED = 0
-DEVICE = "cuda:0"
+DEVICE = "cuda:1"
+RENDER_EVERY = 1
+NUM_RENDER = 8
 
 
 def set_seed(seed):
@@ -31,6 +40,21 @@ def set_seed(seed):
 	torch.manual_seed(seed)
 	if torch.cuda.is_available():
 		torch.cuda.manual_seed_all(seed)
+
+
+def render_reconstructions(model, dataset, epoch, device):
+	"""Save a grid of ground truth images alongside their reconstructions (ground truth top)."""
+	model.eval()
+	indices = random.sample(range(len(dataset)), NUM_RENDER)
+	images = torch.stack([dataset[i][0] for i in indices])
+	with torch.no_grad():
+		images = images.to(device)
+		_, reconstruction, _, _ = model(images)
+	comparison = torch.cat([images.cpu(), reconstruction.cpu()], dim=0)
+	RENDER_DIR.mkdir(parents=True, exist_ok=True)
+	vutils.save_image(
+		comparison, RENDER_DIR / f"epoch_{epoch:03d}.png", nrow=NUM_RENDER
+	)
 
 
 def vae_loss(reconstruction, target, mu, log_var, beta):
@@ -47,8 +71,6 @@ def main():
 
 	if "cuda" in DEVICE and not torch.cuda.is_available():
 		raise RuntimeError("CUDA was requested but is not available")
-	if DEVICE == "auto":
-		device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 	else:
 		device = torch.device(DEVICE)
 
@@ -78,7 +100,8 @@ def main():
 	model = ConvVAE(LATENT_SIZE, 1, conv_params, device).to(device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-	for epoch in range(1, NUM_EPOCHS + 1):
+	epoch_bar = tqdm(range(1, NUM_EPOCHS + 1), desc="training")
+	for epoch in epoch_bar:
 		model.train()
 		total_loss = 0.0
 		total_reconstruction = 0.0
@@ -99,12 +122,14 @@ def main():
 			total_kl += kl_loss.item()
 
 		batches = len(train_loader)
-		print(
-			f"epoch {epoch:03d}/{NUM_EPOCHS:03d} "
-			f"loss={total_loss / batches:.4f} "
-			f"reconstruction={total_reconstruction / batches:.4f} "
-			f"kl={total_kl / batches:.4f}"
+		epoch_bar.set_postfix(
+			loss=f"{total_loss / batches:.4f}",
+			reconstruction=f"{total_reconstruction / batches:.4f}",
+			kl=f"{total_kl / batches:.4f}",
 		)
+
+		if epoch % RENDER_EVERY == 0:
+			render_reconstructions(model, train_set, epoch, device)
 
 	OUTPUTS.parent.mkdir(parents=True, exist_ok=True)
 	torch.save(
