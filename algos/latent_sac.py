@@ -1,14 +1,4 @@
-"""Soft Actor-Critic (SAC) implementation for the RL suite.
-
-This is a compact SAC implementation that supports:
-- continuous action spaces (Gaussian policy with tanh squashing)
-
-https://spinningup.openai.com/en/latest/algorithms/sac.html
-
-It follows the core SAC ideas from OpenAI SpinningUp:
-- twin Q-networks and target Q-networks
-- entropy reg policy learning
-- automatic temp tuning (when enabled)
+"""TODO docs
 """
 
 from __future__ import annotations
@@ -69,7 +59,14 @@ class LatentSAC(Algorithm):
 
         # VAE
         self.obs_encoder = ConvEncoder(self.latent_state_size, in_channels, conv_params).to(self.device)
-        self.act_encoder = nn.Linear(int(np.prod(self.action_space.shape)), self.latent_action_size).to(self.device)   # TODO: Need more layers?
+        # self.act_encoder = nn.Linear(int(np.prod(self.action_space.shape)), self.latent_action_size).to(self.device)   # TODO: Need more layers?
+        self.act_dim = int(np.prod(self.action_space.shape))
+        self.act_encoder = nn.Sequential(
+            nn.Linear(self.act_dim, self.latent_action_size),
+            nn.Tanh(),
+            # nn.Linear(int(self.act_dim/2), self.latent_action_size),
+            # nn.Tanh()
+        ).to(self.device)
 
         self.mu_obs = nn.Linear(self.latent_state_size, self.latent_state_size).to(self.device)
         self.log_var_obs = nn.Linear(self.latent_state_size, self.latent_state_size).to(self.device)
@@ -85,7 +82,12 @@ class LatentSAC(Algorithm):
         ).to(self.device)
         self.out_image_shape = self.obs_decoder.out_image_shape
 
-        self.act_decoder = nn.Linear(self.latent_action_size, int(np.prod(self.action_space.shape))).to(self.device)
+        # self.act_decoder = nn.Linear(self.latent_action_size, int(np.prod(self.action_space.shape))).to(self.device)
+        self.act_decoder = nn.Sequential(
+            nn.Linear(self.latent_action_size, self.act_dim),
+            nn.ReLU(),
+            # nn.Linear(int(self.act_dim/2), self.act_dim),
+        ).to(self.device)
 
         # Optimizers collect all VAE params
         # TODO: Different learning rates for obs vs act? If not, can we use same optimizer?
@@ -140,7 +142,6 @@ class LatentSAC(Algorithm):
         return (np.clip(recon, 0.0, 1.0) * 255.0).astype(np.uint8)
 
     def update(self, batch: Dict[str, np.ndarray]) -> Dict[str, float]:
-        # TODO
         # Batch encode observations (current and next) and actions to latent space
         z, mu_obs, log_var_obs = self.encode_obs(batch['obs'])
         with torch.no_grad():
@@ -224,7 +225,7 @@ class LatentSAC(Algorithm):
         return obs.permute(0, 3, 1, 2).contiguous()
 
     def _vae_loss(self, reconstruction, target, mu, log_var):
-        # TODO: Need reconstruction mult? Different mults for obs vs action (recon and kld)?
+        # TODO: Different mults for obs vs action (recon and kld)?
         reconstruction_loss = F.mse_loss(reconstruction, target, reduction='mean')
         kl_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
         kl_loss = kl_loss / target.size(0)
