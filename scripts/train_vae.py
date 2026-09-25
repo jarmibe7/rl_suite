@@ -13,6 +13,8 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils as vutils
+import matplotlib.pyplot as plt
+import math
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -27,139 +29,220 @@ NUM_EPOCHS = 10
 BATCH_SIZE = 128
 LATENT_SIZE = 16
 LEARNING_RATE = 1e-3
-BETA = 1.0
+ANNEAL_RATE = 0.01
+BETA = 10.0
 SEED = 0
-DEVICE = "cuda:1"
+DEVICE = "cuda:0"
 RENDER_EVERY = 1
 NUM_RENDER = 8
 
+def plot_latent_distributions(
+    mu, log_var, output_path, xmin=-4, xmax=4, title_prefix="Latent Dimension"
+):
+    """
+    Plots 1D Gaussian representations for each latent dimension (mu, log_var),
+    overlayed with a standard Gaussian. Latent vars have dim N
+    """
+    mu = mu.detach().cpu().numpy()
+    log_var = log_var.detach().cpu().numpy()
+
+    N = mu.shape[-1]
+
+    # Subplot grid
+    nrows = int(math.floor(math.sqrt(N)))
+    ncols = int(math.ceil(N / nrows))
+    if nrows * ncols < N:
+        nrows +=1
+
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(4 * ncols, 3 * nrows),
+        dpi=150,
+    )
+    axes = axes.flatten()
+
+
+    x = np.linspace(xmin, xmax, 200)
+
+    def gaussian_pdf(x_val, mean, std):
+        return (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x_val - mean) / std)**2)
+
+    # Create plot
+    std_gaussian_pdf = gaussian_pdf(x, 0, 1)
+    for i in range(N):
+        current_mu = mu[0, i] if mu.ndim > 1 else mu[i] # Handle batch dim if present
+        current_log_var = log_var[0, i] if log_var.ndim > 1 else log_var[i]
+        current_std = np.exp(0.5 * current_log_var)
+
+        learned_pdf = gaussian_pdf(x, current_mu, current_std)
+        axes[i].plot(
+            x,
+            learned_pdf,
+            linewidth=2.0,
+            label=f'Learned (μ={current_mu:.2f}, σ={current_std:.2f})',
+        )
+
+        axes[i].plot(
+            x,
+            std_gaussian_pdf,
+            '--',
+            linewidth=2.0,
+            label='Standard Gaussian (μ=0, σ=1)',
+        )
+
+        axes[i].set_title(f'{title_prefix} {i+1}', fontsize=15, pad=10)
+        axes[i].legend(fontsize=11, frameon=False)
+        axes[i].grid(True)
+        axes[i].set_yticks([])  # Hide y-axis ticks for cleaner look
+        axes[i].tick_params(axis="x", labelsize=11)
+
+    # Hide any unused subplots
+    for j in range(N, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
 
 def set_seed(seed):
-	random.seed(seed)
-	np.random.seed(seed)
-	torch.manual_seed(seed)
-	if torch.cuda.is_available():
-		torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def render_reconstructions(model, dataset, epoch, device):
-	"""Save a grid of ground truth images alongside their reconstructions (ground truth top)."""
-	model.eval()
-	indices = random.sample(range(len(dataset)), NUM_RENDER)
-	images = torch.stack([dataset[i][0] for i in indices])
-	with torch.no_grad():
-		images = images.to(device)
-		_, reconstruction, _, _ = model(images)
-	comparison = torch.cat([images.cpu(), reconstruction.cpu()], dim=0)
-	RENDER_DIR.mkdir(parents=True, exist_ok=True)
-	vutils.save_image(
-		comparison, RENDER_DIR / f"epoch_{epoch:03d}.png", nrow=NUM_RENDER
-	)
+    """Save a grid of ground truth images alongside their reconstructions (ground truth top)."""
+    model.eval()
+    indices = random.sample(range(len(dataset)), NUM_RENDER)
+    images = torch.stack([dataset[i][0] for i in indices])
+    with torch.no_grad():
+        images = images.to(device)
+        _, reconstruction, _, _ = model(images)
+    comparison = torch.cat([images.cpu(), reconstruction.cpu()], dim=0)
+    RENDER_DIR.mkdir(parents=True, exist_ok=True)
+    vutils.save_image(
+        comparison, RENDER_DIR / f"epoch_{epoch:03d}.png", nrow=NUM_RENDER
+    )
 
 
 def vae_loss(reconstruction, target, mu, log_var, beta):
-	reconstruction_loss = F.mse_loss(reconstruction, target, reduction='mean')
-	kl_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-	kl_loss = 1e-4 * (kl_loss / target.size(0))
-	return reconstruction_loss + beta * kl_loss, reconstruction_loss, kl_loss
+    reconstruction_loss = F.mse_loss(reconstruction, target, reduction='mean')
+    kl_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+    kl_loss = 1e-4 * (kl_loss / target.size(0))
+    return reconstruction_loss + beta * kl_loss, reconstruction_loss, kl_loss
 
 
 def main():
-	set_seed(SEED)
+    set_seed(SEED)
 
-	if "cuda" in DEVICE and not torch.cuda.is_available():
-		raise RuntimeError("CUDA was requested but is not available")
-	else:
-		device = torch.device(DEVICE)
+    if "cuda" in DEVICE and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available")
+    else:
+        device = torch.device(DEVICE)
 
-	# Encoder/decoder only works for image size divisible by 8
-	transform = transforms.Compose([
-		transforms.Pad(2),
-		transforms.ToTensor(),
-	])
-	train_set = datasets.MNIST(
-		root=DATA_DIR, train=True, download=True, transform=transform
-	)
-	train_loader = DataLoader(
-		train_set,
-		batch_size=BATCH_SIZE,
-		shuffle=True,
-		pin_memory=device.type == "cuda",
-	)
+    # Encoder/decoder only works for image size divisible by 8
+    transform = transforms.Compose([
+        transforms.Pad(2),
+        transforms.ToTensor(),
+    ])
+    train_set = datasets.MNIST(
+        root=DATA_DIR, train=True, download=True, transform=transform
+    )
+    train_loader = DataLoader(
+        train_set,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        pin_memory=device.type == "cuda",
+    )
 
-	conv_params = {
-		"in_image_shape": (1, 32, 32),
-		"out_image_shape": (1, 32, 32),
-		"enc_kernel_size": 3,
-		"dec_kernel_size": 4,
-		"stride": 2,
-		"pad": 1,
-	}
-	model = ConvVAE(LATENT_SIZE, 1, conv_params, device).to(device)
-	optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    conv_params = {
+        "in_image_shape": (1, 32, 32),
+        "out_image_shape": (1, 32, 32),
+        "enc_kernel_size": 3,
+        "dec_kernel_size": 4,
+        "stride": 2,
+        "pad": 1,
+    }
+    model = ConvVAE(LATENT_SIZE, 1, conv_params, device).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-	epoch_bar = tqdm(range(1, NUM_EPOCHS + 1), desc="training")
-	for epoch in epoch_bar:
-		model.train()
-		total_loss = 0.0
-		total_reconstruction = 0.0
-		total_kl = 0.0
+    epoch_bar = tqdm(range(1, NUM_EPOCHS + 1), desc="training")
+    for epoch in epoch_bar:
+        model.train()
+        total_loss = 0.0
+        total_reconstruction = 0.0
+        total_kl = 0.0
+        
+        if ANNEAL_RATE > 0:
+            current_beta = min(BETA, (epoch**2) * ANNEAL_RATE * BETA)
+        else:
+            current_beta = BETA
+        print(f"\n{current_beta:.10f}")
 
-		for images, _ in train_loader:
-			images = images.to(device, non_blocking=True)
-			optimizer.zero_grad(set_to_none=True)
-			_, reconstruction, mu, log_var = model(images)
-			loss, reconstruction_loss, kl_loss = vae_loss(
-				reconstruction, images, mu, log_var, BETA
-			)
-			loss.backward()
-			optimizer.step()
+        for images, _ in train_loader:
+            images = images.to(device, non_blocking=True)
+            optimizer.zero_grad(set_to_none=True)
+            _, reconstruction, mu, log_var = model(images)
+            loss, reconstruction_loss, kl_loss = vae_loss(
+                reconstruction, images, mu, log_var, current_beta
+            )
+            loss.backward()
+            optimizer.step()
 
-			total_loss += loss.item()
-			total_reconstruction += reconstruction_loss.item()
-			total_kl += kl_loss.item()
+            total_loss += loss.item()
+            total_reconstruction += reconstruction_loss.item()
+            total_kl += kl_loss.item()
 
-		batches = len(train_loader)
-		epoch_bar.set_postfix(
-			loss=f"{total_loss / batches:.4f}",
-			reconstruction=f"{total_reconstruction / batches:.4f}",
-			kl=f"{total_kl / batches:.4f}",
-		)
+        batches = len(train_loader)
+        epoch_bar.set_postfix(
+            loss=f"{total_loss / batches:.4f}",
+            reconstruction=f"{total_reconstruction / batches:.4f}",
+            kl=f"{total_kl / batches:.4f}",
+        )
 
-		if epoch % RENDER_EVERY == 0:
-			render_reconstructions(model, train_set, epoch, device)
+        if epoch % RENDER_EVERY == 0:
+            render_reconstructions(model, train_set, epoch, device)
+            plot_latent_distributions(
+                mu,
+                log_var,
+                RENDER_DIR / f"latent_distributions_epoch_{epoch:03d}.png",
+            )
 
-	# Render new sample
-	model.eval()
-	with torch.no_grad():
-		sample = torch.randn(NUM_RENDER, LATENT_SIZE, device=device)
-		sample = model.conv_decoder(sample)
-		RENDER_DIR.mkdir(parents=True, exist_ok=True)
-		vutils.save_image(
-			sample.cpu(), RENDER_DIR / f"sample.png", nrow=NUM_RENDER
-		)
-	
-	
-	OUTPUTS.parent.mkdir(parents=True, exist_ok=True)
-	torch.save(
-		{
-			"model_state_dict": model.state_dict(),
-			"latent_size": LATENT_SIZE,
-			"conv_params": conv_params,
-			"args": {
-				"num_epochs": NUM_EPOCHS,
-				"batch_size": BATCH_SIZE,
-				"latent_size": LATENT_SIZE,
-				"learning_rate": LEARNING_RATE,
-				"beta": BETA,
-				"seed": SEED,
-				"device": DEVICE,
-			},
-		},
-		OUTPUTS,
-	)
-	print(f"Saved checkpoint to {OUTPUTS}")
+    # Render new sample
+    model.eval()
+    with torch.no_grad():
+        sample = torch.randn(NUM_RENDER, LATENT_SIZE, device=device)
+        sample = model.conv_decoder(sample)
+        RENDER_DIR.mkdir(parents=True, exist_ok=True)
+        vutils.save_image(
+            sample.cpu(), RENDER_DIR / f"sample.png", nrow=NUM_RENDER
+        )
+    
+    
+    OUTPUTS.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "latent_size": LATENT_SIZE,
+            "conv_params": conv_params,
+            "args": {
+                "num_epochs": NUM_EPOCHS,
+                "batch_size": BATCH_SIZE,
+                "latent_size": LATENT_SIZE,
+                "learning_rate": LEARNING_RATE,
+                "beta": BETA,
+                "seed": SEED,
+                "device": DEVICE,
+            },
+        },
+        OUTPUTS,
+    )
+    print(f"Saved checkpoint to {OUTPUTS}")
 
 
 if __name__ == "__main__":
-	main()
+    main()
