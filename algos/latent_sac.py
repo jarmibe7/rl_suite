@@ -63,7 +63,7 @@ class LatentSAC(Algorithm):
         self.act_dim = int(np.prod(self.action_space.shape))
         self.act_encoder = nn.Sequential(
             nn.Linear(self.act_dim, self.latent_action_size),
-            nn.Tanh(),
+            nn.ReLU(),
             # nn.Linear(int(self.act_dim/2), self.latent_action_size),
             # nn.Tanh()
         ).to(self.device)
@@ -182,6 +182,8 @@ class LatentSAC(Algorithm):
             'act_vae_loss': act_loss.item(),
             'act_recon_loss': act_recon_loss.item(),
             'act_kl_loss': act_kl.item(),
+            'u_magnitude': u.norm(p=2, dim=-1).mean().item(),
+            'act_magnitude': self.act_decoder(u).norm(p=2, dim=-1).mean().item()
         })
         return metrics
 
@@ -212,10 +214,23 @@ class LatentSAC(Algorithm):
     def reset(self) -> None:
         pass
 
-    def _reparameterize(self, mu, log_var):
+    def _reparameterize(self, mu, log_var, L=1):
+        # mu, log_var shape: [batch_size, latent_dim]
         std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return mu + eps * std
+        
+        # 1. Expand dimensions to [L, batch_size, latent_dim]
+        mu_expanded = mu.unsqueeze(0).expand(L, -1, -1)
+        std_expanded = std.unsqueeze(0).expand(L, -1, -1)
+        
+        # 2. Sample noise with the same expanded shape
+        eps = torch.randn_like(std_expanded)
+        
+        # 3. Compute all L samples
+        z_samples = mu_expanded + eps * std_expanded
+        
+        # 4. Average early over the L dimension (dim 0)
+        # Returns shape: [batch_size, latent_dim]
+        return torch.mean(z_samples, dim=0)
 
     def _to_image_tensor(self, obs) -> torch.Tensor:
         """Convert channel-last (H, W, C) pixel obs to batched channel-first (N, C, H, W)."""
