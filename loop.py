@@ -105,7 +105,7 @@ class Trainer:
                     # Store in buffer
                     if self.buffer.sequence_mode:
                         # Accumulate step for add_episode at episode end
-                        if not hasattr(self, '_episode_data'):
+                        if getattr(self, '_episode_data', None) is None:
                             self._episode_data = {
                                 'obs': [],
                                 'action': [],

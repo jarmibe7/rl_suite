@@ -22,6 +22,7 @@ from envs.wrappers import make_env
 from algos.random_actor import RandomActor
 from algos.sac import SAC
 from algos.latent_sac import LatentSAC
+from algos.dreamer import Dreamer
 from buffer import ReplayBuffer
 from evaluator import Evaluator
 from logger import Logger
@@ -72,6 +73,7 @@ ALGO_REGISTRY = {
     'random': RandomActor,
     'sac': SAC,
     'latent_sac': LatentSAC,
+    'dreamer': Dreamer,
 }
 
 

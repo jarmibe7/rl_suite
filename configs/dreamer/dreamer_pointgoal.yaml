@@ -1,0 +1,66 @@
+env:
+  name: PointGoal
+  params:
+    plane_size: 2
+    max_steps: 50
+    max_speed: 0.05
+    goal_threshold: 0.08
+    goal_pos: [-0.9, -0.9]
+    start_pos: [0.9, 0.9]
+    random_start: false
+    random_goal: false
+  pixel_obs: true
+  pixel_obs_size: 64
+
+algo:
+  name: dreamer
+  params:
+    conv_params:
+      in_image_shape: [3, 64, 64]
+      out_image_shape: [3, 64, 64]
+      enc_kernel_size: 3
+      dec_kernel_size: 4
+      stride: 2
+      pad: 1
+    in_channels: 3
+    stochastic_size: 30
+    deterministic_size: 200
+    enc_latent_size: 200
+    hidden_dim: 200
+    hidden_layers: 2
+    imagination_horizon: 15
+    gamma: 0.99
+    lam: 0.95
+    model_lr: 0.0006
+    actor_lr: 0.00008
+    critic_lr: 0.00008
+    recon_mult: 1.0
+    reward_mult: 1.0
+    beta: 1.0
+    free_nats: 3.0
+    kld_anneal_mode: const
+    anneal_steps: 100000
+
+device: cuda:1
+
+training:
+  total_steps: 20000
+  batch_size: 16
+  buffer_capacity: 1000
+  buffer_sequence_length: 25
+  start_training_after: 1500
+  updates_per_step: 1
+  seed: 0
+
+evaluation:
+  eval_every_episodes: 20
+  num_episodes: 1
+  record_video: true
+  video_every_calls: 1
+
+checkpoint:
+  checkpoint_every_steps: 2000
+
+logging:
+  wandb_project: jared-rl
+  wandb_entity: murphey-lab-nu
