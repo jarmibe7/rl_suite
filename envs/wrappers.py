@@ -229,6 +229,9 @@ def make_env(
     elif env_id == 'PointGoal':
         from envs.gridworld import PointGoal
         env = PointGoal(**kwargs)
+    elif env_id == 'Pong':
+        from envs.pong import Pong
+        env = Pong(render_mode=render_mode, **kwargs)
     else:
         # MuJoCo envs need a virtual display to render over ssh
         if render_mode is not None and env_id.startswith(MUJOCO_ENV_PREFIXES):
@@ -243,13 +246,6 @@ def make_env(
     if pixel_obs:
         env = PixelObsWrapper(env, image_size=pixel_obs_size)
 
-    # Test render
-    import matplotlib.pyplot as plt
-    frame = env.render() 
-    plt.imshow(env._process(frame))
-    plt.savefig("obs_test_render.png")
-    plt.close()
-    
     # Wrap with standardization
     env = ObsActionWrapper(env)
     

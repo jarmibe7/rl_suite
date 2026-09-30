@@ -2,6 +2,7 @@
 
 This is a compact SAC implementation that supports:
 - continuous action spaces (Gaussian policy with tanh squashing)
+- discrete action spaces (categorical policy)
 
 https://spinningup.openai.com/en/latest/algorithms/sac.html
 
@@ -27,7 +28,7 @@ from models.mlp import MLP
 from models.policy import ContinuousPolicy, DiscretePolicy
 
 class SAC(Algorithm):
-    """Simple SAC implementation with support for continuous actions."""
+    """Simple SAC implementation for continuous and discrete action spaces."""
 
     requires_sequences = False
 
@@ -59,7 +60,6 @@ class SAC(Algorithm):
         self.obs_dim = self._observation_dim()
         self._critic_input_dim = None
         if self.is_discrete:
-            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             self.action_dim = int(action_space.n)
             self.policy = DiscretePolicy(self.obs_dim, self.action_dim, hidden_dim, hidden_layers=self.hidden_layers).to(self.device)
         else:
@@ -74,8 +74,11 @@ class SAC(Algorithm):
         self.q2_optimizer = torch.optim.Adam(self.q2.parameters(), lr=self.learning_rate)
         self.policy_optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.learning_rate)
 
-        if self.automatic_entropy_tuning and not self.is_discrete:
-            self.target_entropy = -float(self.action_dim)
+        if self.automatic_entropy_tuning:
+            self.target_entropy = (
+                0.98 * float(np.log(self.action_dim))
+                if self.is_discrete else -float(self.action_dim)
+            )
             self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
             self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.learning_rate)
         else:
@@ -87,10 +90,7 @@ class SAC(Algorithm):
     def act(self, obs: np.ndarray, deterministic: bool = False):
         obs_tensor = self._to_tensor(obs)
         if self.is_discrete:
-            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
             action, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
-            if deterministic:
-                return int(action.item())
             return int(action.item())
 
         _, action, _, _ = self.policy.sample(obs_tensor, deterministic=deterministic)
@@ -101,31 +101,33 @@ class SAC(Algorithm):
     def update(self, batch: Dict[str, np.ndarray]) -> Dict[str, float]:
         obs = self._to_tensor(batch['obs'])
         action = self._to_tensor(batch['action'])
-        action = (action - self.low) / (self.high - self.low) * 2 - 1    # Normalize action back to [-1, 1] range, originally scaled up to action space bounds in act()
+        if self.is_discrete:
+            action = action.long().view(-1, 1)
+        else:
+            action = (action - self.low) / (self.high - self.low) * 2 - 1    # Normalize action back to [-1, 1] range, originally scaled up to action space bounds in act()
         reward = self._to_tensor(batch['reward']).unsqueeze(-1)
         next_obs = self._to_tensor(batch['next_obs'])
         done = self._to_tensor(batch['done']).float().unsqueeze(-1)
 
         # Compute target Q-values
         if self.is_discrete:
-            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
-            policy_action, policy_logits = self.policy.sample(obs)
-            policy_action = policy_action.long()
-            log_prob = F.log_softmax(policy_logits, dim=-1)
-            selected_log_prob = log_prob.gather(1, policy_action.unsqueeze(-1)).squeeze(-1)
-
+            logits = self.policy(obs)
+            probs = F.softmax(logits, dim=-1)
+            log_probs = F.log_softmax(logits, dim=-1)
             with torch.no_grad():
-                next_policy_action, next_policy_logits = self.policy.sample(next_obs)
-                next_policy_action = next_policy_action.long()
-                next_log_prob = F.log_softmax(next_policy_logits, dim=-1)
-                next_selected_log_prob = next_log_prob.gather(1, next_policy_action.unsqueeze(-1)).squeeze(-1)
-                next_q1 = self.q1_target(torch.cat([next_obs, next_policy_action.float().unsqueeze(-1)], dim=-1))
-                next_q2 = self.q2_target(torch.cat([next_obs, next_policy_action.float().unsqueeze(-1)], dim=-1))
+                next_logits = self.policy(next_obs)
+                next_probs = F.softmax(next_logits, dim=-1)
+                next_log_probs = F.log_softmax(next_logits, dim=-1)
+                next_q1 = self.q1_target(next_obs)
+                next_q2 = self.q2_target(next_obs)
                 next_q = torch.minimum(next_q1, next_q2)
-                q_target = reward + self.gamma * (1 - done) * (next_q - self.alpha * next_selected_log_prob.unsqueeze(-1))
+                next_value = (next_probs * (next_q - self.alpha * next_log_probs)).sum(dim=-1, keepdim=True)
+                q_target = reward + self.gamma * (1 - done) * next_value
 
-            q1_loss = F.mse_loss(self.q1(torch.cat([obs, action.float().unsqueeze(-1)], dim=-1)), q_target.detach())
-            q2_loss = F.mse_loss(self.q2(torch.cat([obs, action.float().unsqueeze(-1)], dim=-1)), q_target.detach())
+            q1 = self.q1(obs).gather(1, action)
+            q2 = self.q2(obs).gather(1, action)
+            q1_loss = F.mse_loss(q1, q_target)
+            q2_loss = F.mse_loss(q2, q_target)
         else:
             raw_action, policy_action, mean, log_std = self.policy.sample(obs)
             log_prob = self._log_prob_from_action(raw_action, mean, log_std)
@@ -151,16 +153,14 @@ class SAC(Algorithm):
 
         # Don't want to backprop policy loss through critic weights
         if self.is_discrete:
-            raise NotImplementedError("Discrete action spaces are not yet supported in this SAC implementation.")
-            policy_action, policy_logits = self.policy.sample(obs)
-            policy_action = policy_action.long()
-            log_prob = F.log_softmax(policy_logits, dim=-1)
-            selected_log_prob = log_prob.gather(1, policy_action.unsqueeze(-1)).squeeze(-1)
-            q1_val = self.q1(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
-            q2_val = self.q2(torch.cat([obs, policy_action.float().unsqueeze(-1)], dim=-1))
-            min_q = torch.minimum(q1_val, q2_val)
-            policy_loss = (self.alpha * (-selected_log_prob) - min_q).mean()
-            policy_entropy = -torch.mean(selected_log_prob)
+            logits = self.policy(obs)
+            probs = F.softmax(logits, dim=-1)
+            log_probs = F.log_softmax(logits, dim=-1)
+            with torch.no_grad():
+                min_q = torch.minimum(self.q1(obs), self.q2(obs))
+            log_prob = (probs * log_probs).sum(dim=-1, keepdim=True)
+            policy_loss = (probs * (self.alpha * log_probs - min_q)).sum(dim=-1).mean()
+            policy_entropy = -(probs * log_probs).sum(dim=-1).mean()
         else:
             raw_action, policy_action, mean, log_std = self.policy.sample(obs)
             log_prob = self._log_prob_from_action(raw_action, mean, log_std)
@@ -221,10 +221,11 @@ class SAC(Algorithm):
 
     def _init_critics(self, obs_dim: int) -> None:
         critic_input_dim = obs_dim + self._action_input_dim()
-        self.q1 = MLP(critic_input_dim, self.hidden_dim, 1, hidden_layers=self.hidden_layers).to(self.device)
-        self.q2 = MLP(critic_input_dim, self.hidden_dim, 1, hidden_layers=self.hidden_layers).to(self.device)
-        self.q1_target = MLP(critic_input_dim, self.hidden_dim, 1, hidden_layers=self.hidden_layers).to(self.device)
-        self.q2_target = MLP(critic_input_dim, self.hidden_dim, 1, hidden_layers=self.hidden_layers).to(self.device)
+        critic_output_dim = self.action_dim if self.is_discrete else 1
+        self.q1 = MLP(critic_input_dim, self.hidden_dim, critic_output_dim, hidden_layers=self.hidden_layers).to(self.device)
+        self.q2 = MLP(critic_input_dim, self.hidden_dim, critic_output_dim, hidden_layers=self.hidden_layers).to(self.device)
+        self.q1_target = MLP(critic_input_dim, self.hidden_dim, critic_output_dim, hidden_layers=self.hidden_layers).to(self.device)
+        self.q2_target = MLP(critic_input_dim, self.hidden_dim, critic_output_dim, hidden_layers=self.hidden_layers).to(self.device)
         self.q1_target.load_state_dict(self.q1.state_dict())
         self.q2_target.load_state_dict(self.q2.state_dict())
 
@@ -233,7 +234,7 @@ class SAC(Algorithm):
         self._critic_input_dim = critic_input_dim
 
     def _action_input_dim(self) -> int:
-        return 1 if self.is_discrete else self.action_dim
+        return 0 if self.is_discrete else self.action_dim
 
     def _observation_dim(self) -> int:
         if self.observation_space is None:
